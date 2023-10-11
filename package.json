@@ -11,6 +11,7 @@
     "bun-types": "latest",
     "husky": "^8.0.0",
     "nano-staged": "^0.8.0",
+    "nock": "^13.3.4",
     "prettier": "^3.0.3"
   },
   "peerDependencies": {
