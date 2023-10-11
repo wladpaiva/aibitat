@@ -169,7 +169,7 @@ export class ConversableAgent<T extends AIProvider<unknown>> extends Agent {
 
     this.registerReply({
       trigger: this,
-      replyFunc: this.generateOaiReply,
+      replyFunc: this.generateAiReply,
     })
 
     // TODO: implement those
@@ -221,10 +221,10 @@ export class ConversableAgent<T extends AIProvider<unknown>> extends Agent {
    * @param agent The agent that sent the message.
    * @returns whether the message is appended to the ChatCompletion conversation.
    */
-  public appendOaiMessage(message: string | Message, role: Role, agent: Agent) {
+  public appendAiMessage(message: string | Message, role: Role, agent: Agent) {
     const converted = ConversableAgent.messageToDict(message)
 
-    // create oai message to be appended to the oai conversation that can be passed to oai directly.
+    // create ai message to be appended to the ai conversation that can be passed to ai directly.
     if (
       !converted.content &&
       (!('function_call' in converted) || !converted.function_call)
@@ -258,7 +258,7 @@ export class ConversableAgent<T extends AIProvider<unknown>> extends Agent {
   ) {
     // When the agent composes and sends the message, the role of the message is "assistant"
     // unless it's "function".
-    const valid = this.appendOaiMessage(message, 'assistant', recipient)
+    const valid = this.appendAiMessage(message, 'assistant', recipient)
     if (!valid) {
       throw new Error(
         "Message can't be converted into a valid ChatCompletion message. Either content or function_call must be provided.",
@@ -276,7 +276,7 @@ export class ConversableAgent<T extends AIProvider<unknown>> extends Agent {
    */
   private processReceivedMessage(message: string | Message, sender: Agent) {
     const converted = ConversableAgent.messageToDict(message)
-    const valid = this.appendOaiMessage(message, 'user', sender)
+    const valid = this.appendAiMessage(message, 'user', sender)
     if (!valid) {
       throw new Error(
         "Received message can't be converted into a valid ChatCompletion message. Either content or function_call must be provided.",
@@ -375,7 +375,7 @@ export class ConversableAgent<T extends AIProvider<unknown>> extends Agent {
    * 1. check_termination_and_human_reply
    * 2. generate_function_call_reply
    * 3. generate_code_execution_reply
-   * 4. generate_oai_reply
+   * 4. generate_ai_reply
    * Every function returns a tuple (final, reply).
    * When a function returns final=False, the next function will be checked.
    * So by default, termination and human reply will be checked first.
@@ -417,12 +417,12 @@ export class ConversableAgent<T extends AIProvider<unknown>> extends Agent {
   }
 
   /**
-   * Generate a reply using `autogen.oai`
+   * Generate a reply using AI
    * @param messages
    * @param sender
    * @param config
    */
-  public async generateOaiReply(messages?: Message[], sender?: Agent) {
+  public async generateAiReply(messages?: Message[], sender?: Agent) {
     if (!sender) {
       throw new Error('Sender must be provided.')
     }
