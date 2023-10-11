@@ -2,23 +2,60 @@ import {OpenAIStream, StreamingTextResponse} from 'ai'
 import OpenAI, {ClientOptions} from 'openai'
 
 import {Agent} from './agent'
-import {AgentAI} from './ai'
+import {AIProvider} from './ai'
 import type {Callable, LlmConfig, Message, ReplyFunc, Role} from './types'
 
-export class OpenAIw extends AgentAI<OpenAI> {
-  constructor(
-    opts: ClientOptions = {
-      apiKey: process.env.OPENAI_API_KEY,
-    },
-  ) {
-    const client = new OpenAI(opts)
+/**
+ * The model to use for the OpenAI API.
+ */
+type Model = OpenAI.Chat.Completions.ChatCompletionCreateParams['model']
+
+/**
+ * The configuration for the OpenAI provider.
+ */
+export type OpenAIProviderConfig = {
+  /**
+   * The options for the OpenAI client.
+   * @default {apiKey: process.env.OPENAI_API_KEY}
+   */
+  options?: ClientOptions
+  /**
+   * The model to use for the OpenAI API.
+   * @default 'gpt-3.5-turbo'
+   */
+  model?: Model
+}
+
+/**
+ * The provider for the OpenAI API.
+ */
+export class OpenAIProvider extends AIProvider<OpenAI> {
+  private model: Model
+
+  constructor(config: OpenAIProviderConfig = {}) {
+    const {
+      options = {
+        apiKey: process.env.OPENAI_API_KEY,
+      },
+      model = 'gpt-3.5-turbo',
+    } = config
+
+    const client = new OpenAI(options)
 
     super(client)
+
+    this.model = model
   }
 
+  /**
+   * Create a completion based on the received messages.
+   *
+   * @param messages A list of messages to send to the OpenAI API.
+   * @returns The completion.
+   */
   async create(messages: Message[]) {
     const response = await this.client.chat.completions.create({
-      model: 'gpt-3.5-turbo',
+      model: this.model,
       stream: true,
       messages: messages!,
     })
@@ -29,32 +66,92 @@ export class OpenAIw extends AgentAI<OpenAI> {
   }
 }
 
-export class ConversableAgent extends Agent {
+type ConversableAgentConfig<T extends AIProvider<unknown>> = {
+  /**
+   * The name of the agent.
+   */
+  name: string
+
+  /**
+   * The AI provider.
+   */
+  provider: T
+
+  /**
+   * A function that is called when the agent receives a message.
+   */
+  onMessageReceived?: (message: Message, sender: Agent) => void
+
+  /**
+   * A system message
+   * @default "You are a helpful AI Assistant."
+   */
+  systemMessage?: string
+
+  /**
+   * A termination message function.
+   */
+  isTerminationMsg?: Callable
+
+  /**
+   * Max consecutive auto replies.
+   * @default 100
+   */
+  maxConsecutiveAutoReply?: number
+
+  /**
+   * The human input mode.
+   * @default "TERMINATE"
+   */
+  // humanInputMode?: HumanInputMode
+
+  /**
+   * A map of functions.
+   */
+  // TODO: implement this
+  // functionMap?: Dict<Callable>
+
+  /**
+   * Code execution configuration.
+   */
+  // codeExecutionConfig?: CodeExecutionConfig
+
+  /**
+   * Default auto reply.
+   * @default ""
+   */
+  defaultAutoReply?: string
+}
+
+/**
+ * A class for generic conversable agents which can be configured as assistant or user proxy.
+ *
+ * After receiving each message, the agent will send a reply to the sender unless the msg is a termination msg.
+ * For example, AssistantAgent and UserProxyAgent are subclasses of this class,
+ * configured with different default settings.
+ *
+ * To modify auto reply, override `generateReply` method.
+ * To disable/enable human response in every turn, set `humanInputMode` to "NEVER" or "ALWAYS".
+ * To modify the way to get human input, override `getHumanInput` method.
+ * To modify the way to execute code blocks, single code block, or function call, override `executeCodeBlocks`,
+ * `runCode`, and `executeFunction` methods respectively.
+ * To customize the initial message when a conversation starts, override `generate_init_message` method.
+ */
+export class ConversableAgent<T extends AIProvider<unknown>> extends Agent {
   private _messages: Map<Agent, Message[]>
   private replyFuncList: (ReplyFunc & {init_config: unknown})[] = []
   private onMessageReceived?: (message: Message, sender: Agent) => void
   private defaultAutoReply: string
-  private agentAI: AgentAI<unknown>
+  private provider: T
 
-  constructor(
-    name: string,
-    ai: AgentAI<unknown>,
-    config: {
-      /**
-       * Default auto reply.
-       * @default ""
-       */
-      defaultAutoReply?: string
-    } = {},
-  ) {
+  constructor(config: ConversableAgentConfig<T>) {
+    const {name, provider, onMessageReceived, defaultAutoReply = ''} = config
+
     super(name)
 
-    this.agentAI = ai
+    this.provider = provider
     this._messages = new Map<Agent, Message[]>()
-    this.onMessageReceived = (message, sender) => {
-      console.log(`${sender.name}: ${message.content}`)
-    }
-    const {defaultAutoReply = ''} = config
+    this.onMessageReceived = onMessageReceived
     this.defaultAutoReply = defaultAutoReply
 
     this.registerReply({
@@ -286,7 +383,8 @@ export class ConversableAgent extends Agent {
     for (const replyFuncTuple of this.replyFuncList) {
       const replyFunc = replyFuncTuple.replyFunc
       if (replyFuncTuple.trigger instanceof Agent) {
-        const {success, reply} = await replyFunc(
+        const {success, reply} = await replyFunc.call(
+          this,
           messages,
           sender,
           replyFuncTuple.config,
@@ -316,8 +414,7 @@ export class ConversableAgent extends Agent {
     }
 
     // TODO: return streaming text response
-    const reply = await this.agentAI.create(messages!)
-    // const reply = ''
+    const reply = await this.provider.create(messages!)
 
     return {
       success: true,

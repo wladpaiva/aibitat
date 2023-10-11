@@ -1,6 +1,6 @@
 import {Message} from './types'
 
-export abstract class AgentAI<T> {
+export abstract class AIProvider<T> {
   private _client: T
 
   constructor(client: T) {
