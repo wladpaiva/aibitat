@@ -1,4 +1,4 @@
-import {Message} from './types'
+import {Message} from '../types'
 
 export abstract class AIProvider<T> {
   private _client: T

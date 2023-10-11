@@ -1,9 +1,9 @@
 import {OpenAIStream, StreamingTextResponse} from 'ai'
 import OpenAI, {ClientOptions} from 'openai'
 
+import {AIProvider} from '../providers/ai-provider'
+import type {Callable, LlmConfig, Message, ReplyFunc, Role} from '../types'
 import {Agent} from './agent'
-import {AIProvider} from './ai'
-import type {Callable, LlmConfig, Message, ReplyFunc, Role} from './types'
 
 /**
  * The model to use for the OpenAI API.
@@ -66,7 +66,7 @@ export class OpenAIProvider extends AIProvider<OpenAI> {
   }
 }
 
-type ConversableAgentConfig<T extends AIProvider<unknown>> = {
+export type ConversableAgentConfig<T extends AIProvider<unknown>> = {
   /**
    * The name of the agent.
    */
@@ -150,7 +150,7 @@ export class ConversableAgent<T extends AIProvider<unknown>> extends Agent {
       name,
       provider,
       onMessageReceived,
-      systemMessage = 'You are a helpful AI Assistant.',
+      systemMessage = '',
       defaultAutoReply = '',
     } = config
 

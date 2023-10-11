@@ -1,7 +1,7 @@
 import {beforeEach, expect, mock, test} from 'bun:test'
 import OpenAI from 'openai'
 
-import {AIProvider} from './ai'
+import {AIProvider} from '../providers/ai-provider'
 import {ConversableAgent} from './conversable-agent'
 
 // HACK: Mock the AI provider.
