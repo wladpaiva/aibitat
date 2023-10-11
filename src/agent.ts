@@ -1,4 +1,4 @@
-import { Message } from "./types";
+import {Message} from './types'
 
 /**
  * (In preview) An abstract class for AI agent.
@@ -7,13 +7,13 @@ import { Message } from "./types";
  * Different agents can differ in what actions they perform in the `receive` method.
  */
 export abstract class Agent {
-  private _name: string;
+  private _name: string
 
   /**
    * @param name name of the agent.
    */
   constructor(name: string) {
-    this._name = name;
+    this._name = name
   }
 
   /**
@@ -21,7 +21,7 @@ export abstract class Agent {
    * @returns The name of the agent.
    */
   get name(): string {
-    return this._name;
+    return this._name
   }
 
   /**
@@ -34,8 +34,8 @@ export abstract class Agent {
   abstract send(
     message: string | Message,
     recipient: Agent,
-    requestReply?: boolean
-  ): Promise<void>;
+    requestReply?: boolean,
+  ): Promise<void>
 
   /**
    * (Abstract async method) Receive a message from another agent.
@@ -47,8 +47,8 @@ export abstract class Agent {
   abstract receive(
     message: string | Message,
     sender: Agent,
-    requestReply?: boolean
-  ): Promise<void>;
+    requestReply?: boolean,
+  ): Promise<void>
 
   /**
    * (Abstract async method) Generate a reply based on the received messages.
@@ -59,12 +59,12 @@ export abstract class Agent {
    */
   abstract generateReply(
     messages?: Message[],
-    sender?: Agent
-  ): Promise<string | null>;
+    sender?: Agent,
+  ): Promise<string | null>
 
   /**
    * (Abstract method) Reset the agent.
    * @abstract
    */
-  abstract reset(): void;
+  abstract reset(): void
 }

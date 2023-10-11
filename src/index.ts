@@ -1,11 +1,12 @@
-import OpenAI from "openai";
-import { OpenAIStream, StreamingTextResponse } from "ai";
-import { Agent } from "./agent";
-import type { Callable, LlmConfig, Message, ReplyFunc, Role } from "./types";
+import {OpenAIStream, StreamingTextResponse} from 'ai'
+import OpenAI from 'openai'
+
+import {Agent} from './agent'
+import type {Callable, LlmConfig, Message, ReplyFunc, Role} from './types'
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
-});
+})
 
 // const response = await openai.chat.completions.create({
 //   model: "gpt-3.5-turbo",
@@ -60,10 +61,10 @@ const openai = new OpenAI({
 // console.log("🔴 ~ ", second);
 
 class ConversableAgent extends Agent {
-  private _messages: Map<Agent, Message[]>;
-  private replyFuncList: (ReplyFunc & { init_config: unknown })[] = [];
-  private onMessageReceived?: (message: Message, sender: Agent) => void;
-  private defaultAutoReply: string;
+  private _messages: Map<Agent, Message[]>
+  private replyFuncList: (ReplyFunc & {init_config: unknown})[] = []
+  private onMessageReceived?: (message: Message, sender: Agent) => void
+  private defaultAutoReply: string
 
   constructor(
     name: string,
@@ -72,21 +73,21 @@ class ConversableAgent extends Agent {
        * Default auto reply.
        * @default ""
        */
-      defaultAutoReply?: string;
-    } = {}
+      defaultAutoReply?: string
+    } = {},
   ) {
-    super(name);
-    this._messages = new Map<Agent, Message[]>();
+    super(name)
+    this._messages = new Map<Agent, Message[]>()
     this.onMessageReceived = (message, sender) => {
-      console.log(`${sender.name}: ${message.content}`);
-    };
-    const { defaultAutoReply = "" } = config;
-    this.defaultAutoReply = defaultAutoReply;
+      console.log(`${sender.name}: ${message.content}`)
+    }
+    const {defaultAutoReply = ''} = config
+    this.defaultAutoReply = defaultAutoReply
 
     this.registerReply({
       trigger: this,
       replyFunc: this.generateOaiReply,
-    });
+    })
 
     // TODO: implement those
     // this.registerReply({
@@ -108,7 +109,7 @@ class ConversableAgent extends Agent {
    * @returns The chat messages.
    */
   get chatMessages() {
-    return this._messages;
+    return this._messages
   }
 
   /**
@@ -117,7 +118,7 @@ class ConversableAgent extends Agent {
    * @param message The message to convert.
    */
   static messageToDict(message: string | Message) {
-    return typeof message === "string" ? { content: message } : message;
+    return typeof message === 'string' ? {content: message} : message
   }
 
   /**
@@ -133,50 +134,50 @@ class ConversableAgent extends Agent {
    * @returns whether the message is appended to the ChatCompletion conversation.
    */
   public appendOaiMessage(message: string | Message, role: Role, agent: Agent) {
-    const converted = ConversableAgent.messageToDict(message);
+    const converted = ConversableAgent.messageToDict(message)
 
     // create oai message to be appended to the oai conversation that can be passed to oai directly.
     if (
       !converted.content &&
-      (!("function_call" in converted) || !converted.function_call)
+      (!('function_call' in converted) || !converted.function_call)
     ) {
-      return false;
+      return false
     }
 
     const newMessage: Message = {
       ...converted,
       role:
-        "role" in converted && converted.role === "function"
-          ? "function"
-          : "function_call" in converted && converted.function_call
-          ? "assistant"
+        'role' in converted && converted.role === 'function'
+          ? 'function'
+          : 'function_call' in converted && converted.function_call
+          ? 'assistant'
           : role,
-    };
-
-    if (!this._messages.has(agent)) {
-      this._messages.set(agent, []);
     }
 
-    this._messages.get(agent)!.push(newMessage);
+    if (!this._messages.has(agent)) {
+      this._messages.set(agent, [])
+    }
 
-    return true;
+    this._messages.get(agent)!.push(newMessage)
+
+    return true
   }
 
   async send(
     message: string | Message,
     recipient: Agent,
-    requestReply?: boolean | undefined
+    requestReply?: boolean | undefined,
   ) {
     // When the agent composes and sends the message, the role of the message is "assistant"
     // unless it's "function".
-    const valid = this.appendOaiMessage(message, "assistant", recipient);
+    const valid = this.appendOaiMessage(message, 'assistant', recipient)
     if (!valid) {
       throw new Error(
-        "Message can't be converted into a valid ChatCompletion message. Either content or function_call must be provided."
-      );
+        "Message can't be converted into a valid ChatCompletion message. Either content or function_call must be provided.",
+      )
     }
 
-    await recipient.receive(message, this, requestReply);
+    await recipient.receive(message, this, requestReply)
   }
 
   /**
@@ -186,32 +187,32 @@ class ConversableAgent extends Agent {
    * @param sender
    */
   private processReceivedMessage(message: string | Message, sender: Agent) {
-    const converted = ConversableAgent.messageToDict(message);
-    const valid = this.appendOaiMessage(message, "user", sender);
+    const converted = ConversableAgent.messageToDict(message)
+    const valid = this.appendOaiMessage(message, 'user', sender)
     if (!valid) {
       throw new Error(
-        "Received message can't be converted into a valid ChatCompletion message. Either content or function_call must be provided."
-      );
+        "Received message can't be converted into a valid ChatCompletion message. Either content or function_call must be provided.",
+      )
     }
-    this.onMessageReceived?.({ role: "user", ...converted }, sender);
+    this.onMessageReceived?.({role: 'user', ...converted}, sender)
   }
 
   async receive(
     message: string | Message,
     sender: Agent,
-    requestReply?: boolean
+    requestReply?: boolean,
   ) {
-    this.processReceivedMessage(message, sender);
+    this.processReceivedMessage(message, sender)
     if (!requestReply) {
-      return;
+      return
     }
 
     const reply = await this.generateReply(
       this.chatMessages.get(sender),
-      sender
-    );
+      sender,
+    )
     if (reply) {
-      await this.send(reply, sender);
+      await this.send(reply, sender)
     }
   }
 
@@ -239,32 +240,32 @@ class ConversableAgent extends Agent {
      * - If None is provided, the reply function will be called only when the sender is None.
      * Note: Be sure to register `None` as a trigger if you would like to trigger an auto-reply function with non-empty messages and `sender=None`.
      */
-    trigger: string | Agent | Callable | unknown[];
+    trigger: string | Agent | Callable | unknown[]
     /**
      * The function takes a recipient agent, a list of messages, a sender agent and a config as input and returns a reply message.
      */
-    replyFunc: Callable;
+    replyFunc: Callable
     /**
      * The position of the reply function in the reply function list.
      * The function registered later will be checked earlier by default.
      * To change the order, set the position to a positive integer.
      */
-    position?: number;
+    position?: number
     /**
      * The config to be passed to the reply function.
      * When an agent is reset, the config will be reset to the original value.
      */
-    config?: LlmConfig;
+    config?: LlmConfig
     /**
      * the function to reset the config.
      * The function returns None.
      */
-    resetConfig?: Callable;
+    resetConfig?: Callable
   }) {
     if (!(trigger instanceof (Agent || String || Function || Array))) {
       throw new Error(
-        "trigger must be a class, a string, an agent, a callable or a list."
-      );
+        'trigger must be a class, a string, an agent, a callable or a list.',
+      )
     }
 
     this.replyFuncList.splice(position, 0, {
@@ -273,7 +274,7 @@ class ConversableAgent extends Agent {
       config,
       init_config: config,
       resetConfig,
-    });
+    })
   }
 
   /**
@@ -299,31 +300,31 @@ class ConversableAgent extends Agent {
    */
   async generateReply(
     messages?: Message[],
-    sender?: Agent
+    sender?: Agent,
   ): Promise<string | null> {
     if (!messages && !sender) {
-      throw new Error("Either messages or sender must be provided.");
+      throw new Error('Either messages or sender must be provided.')
     }
 
     if (!messages) {
-      messages = this.chatMessages.get(sender!) || [];
+      messages = this.chatMessages.get(sender!) || []
     }
 
     for (const replyFuncTuple of this.replyFuncList) {
-      const replyFunc = replyFuncTuple.replyFunc;
+      const replyFunc = replyFuncTuple.replyFunc
       if (replyFuncTuple.trigger instanceof Agent) {
-        const { success, reply } = await replyFunc(
+        const {success, reply} = await replyFunc(
           messages,
           sender,
-          replyFuncTuple.config
-        );
+          replyFuncTuple.config,
+        )
         if (success) {
-          return reply;
+          return reply
         }
       }
     }
 
-    return this.defaultAutoReply;
+    return this.defaultAutoReply
   }
 
   /**
@@ -335,26 +336,26 @@ class ConversableAgent extends Agent {
   public async generateOaiReply(
     messages?: Message[],
     sender?: Agent,
-    config?: LlmConfig
+    config?: LlmConfig,
   ): Promise<
     | {
-        success: false;
-        reply: null;
+        success: false
+        reply: null
       }
     | {
-        success: true;
-        reply: string;
+        success: true
+        reply: string
       }
   > {
     // TODO: config
     // const llmConfig = config || this.llmConfig;
 
     if (!sender) {
-      throw new Error("Sender must be provided.");
+      throw new Error('Sender must be provided.')
     }
 
     if (!messages) {
-      messages = this._messages.get(sender);
+      messages = this._messages.get(sender)
     }
 
     // TODO: implement this
@@ -363,33 +364,29 @@ class ConversableAgent extends Agent {
     //         )
     //         return True, oai.ChatCompletion.extract_text_or_function_call(response)[0]
     const response2 = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo",
+      model: 'gpt-3.5-turbo',
       stream: true,
       messages: messages!,
-    });
+    })
 
-    const stream2 = OpenAIStream(response2);
-    const result2 = new StreamingTextResponse(stream2);
-    const second = await result2.text();
+    const stream2 = OpenAIStream(response2)
+    const result2 = new StreamingTextResponse(stream2)
+    const second = await result2.text()
 
     return {
       success: true,
       reply: second,
-    } as const;
+    } as const
   }
 
   reset(): void {
-    throw new Error("Method not implemented.");
+    throw new Error('Method not implemented.')
   }
 }
 
-const first = new ConversableAgent("🔥");
-const second = new ConversableAgent("🔴");
-await first.send(
-  { content: "Hello, how are you?", role: "user" },
-  second,
-  true
-);
+const first = new ConversableAgent('🔥')
+const second = new ConversableAgent('🔴')
+await first.send({content: 'Hello, how are you?', role: 'user'}, second, true)
 
 // TODO: 1. Configuration
 // TODO: 2. generate_function_call_reply
@@ -400,5 +397,5 @@ await first.send(
 // TODO: 7. Group
 // TODO: 8. GroupManager
 
-console.log("🔥 ~ first.chatMessages", first.chatMessages);
-console.log("🔥 ~ second.chatMessages", second.chatMessages);
+console.log('🔥 ~ first.chatMessages', first.chatMessages)
+console.log('🔥 ~ second.chatMessages', second.chatMessages)
