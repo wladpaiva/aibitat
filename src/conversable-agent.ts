@@ -143,9 +143,16 @@ export class ConversableAgent<T extends AIProvider<unknown>> extends Agent {
   private onMessageReceived?: (message: Message, sender: Agent) => void
   private defaultAutoReply: string
   private provider: T
+  private _systemMessage: Message[]
 
   constructor(config: ConversableAgentConfig<T>) {
-    const {name, provider, onMessageReceived, defaultAutoReply = ''} = config
+    const {
+      name,
+      provider,
+      onMessageReceived,
+      systemMessage = 'You are a helpful AI Assistant.',
+      defaultAutoReply = '',
+    } = config
 
     super(name)
 
@@ -153,6 +160,12 @@ export class ConversableAgent<T extends AIProvider<unknown>> extends Agent {
     this._messages = new Map<Agent, Message[]>()
     this.onMessageReceived = onMessageReceived
     this.defaultAutoReply = defaultAutoReply
+    this._systemMessage = [
+      {
+        content: systemMessage,
+        role: 'system',
+      },
+    ]
 
     this.registerReply({
       trigger: this,
@@ -180,6 +193,11 @@ export class ConversableAgent<T extends AIProvider<unknown>> extends Agent {
    */
   get chatMessages() {
     return this._messages
+  }
+
+  /** Return the system message. */
+  get systemMessage() {
+    return this._systemMessage[0]['content'] as string
   }
 
   /**
@@ -410,11 +428,14 @@ export class ConversableAgent<T extends AIProvider<unknown>> extends Agent {
     }
 
     if (!messages) {
-      messages = this.chatMessages.get(sender)
+      messages = this.chatMessages.get(sender) || []
     }
 
     // TODO: return streaming text response
-    const reply = await this.provider.create(messages!)
+    const reply = await this.provider.create([
+      ...this._systemMessage,
+      ...messages,
+    ])
 
     return {
       success: true,
