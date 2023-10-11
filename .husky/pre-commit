@@ -1,4 +1,4 @@
 #!/usr/bin/env sh
 . "$(dirname -- "$0")/_/husky.sh"
 
-./node_modules/.bin/nano-staged && bun test
+./node_modules/.bin/nano-staged && bun run typecheck && bun test
