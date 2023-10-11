@@ -2,8 +2,13 @@
   "name": "autogen",
   "module": "src/index.ts",
   "type": "module",
+  "scripts": {
+    "format": "prettier --write ."
+  },
   "devDependencies": {
-    "bun-types": "latest"
+    "@ianvs/prettier-plugin-sort-imports": "^4.1.0",
+    "bun-types": "latest",
+    "prettier": "^3.0.3"
   },
   "peerDependencies": {
     "typescript": "^5.0.0"

@@ -1,0 +1,30 @@
+# project
+node_modules
+.DS_Store
+bun.lockb
+
+# VERCEL
+.vercel
+.output
+
+# Turborepo
+.turbo
+
+# Db 
+**/prisma/client
+
+# Remix
+**/public/build/**
+**/build/**
+
+# Next.js build output
+**/.next/**
+
+# Packages
+**/dist/**
+
+# Docker
+docker/*/data
+
+# Storybook stuff
+**/storybook-static/**
