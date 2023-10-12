@@ -13,7 +13,8 @@ import {Agent} from './agent.ts'
 
 const log = debug('autogen:agent')
 
-type TerminatingMessageFunc = (message: Message) => boolean
+export type TerminatingMessageFunc = (message: Message) => boolean
+export type OnMessageReceivedEvent = (message: Message, sender: Agent) => void
 export type ConversableAgentConfig<T extends AIProvider<unknown>> = {
   /**
    * The name of the agent.
@@ -28,7 +29,7 @@ export type ConversableAgentConfig<T extends AIProvider<unknown>> = {
   /**
    * A function that is called when the agent receives a message.
    */
-  onMessageReceived?: (message: Message, sender: Agent) => void
+  onMessageReceived?: OnMessageReceivedEvent
 
   /**
    * A system message
@@ -88,7 +89,7 @@ export type ConversableAgentConfig<T extends AIProvider<unknown>> = {
 export class ConversableAgent<T extends AIProvider<unknown>> extends Agent {
   private _messages: Map<Agent, Message[]>
   private replyFuncList: (ReplyFunc & {init_config: unknown})[] = []
-  private onMessageReceived?: (message: Message, sender: Agent) => void
+  private onMessageReceived?: OnMessageReceivedEvent
   private defaultAutoReply: string
   private provider: T
   private _systemMessage: Message[]
@@ -160,6 +161,10 @@ export class ConversableAgent<T extends AIProvider<unknown>> extends Agent {
     return this._systemMessage[0]['content'] as string
   }
 
+  set systemMessage(message: string) {
+    this._systemMessage[0]['content'] = message
+  }
+
   /**
    * Convert a message to a dictionary. The message can be a string or a dictionary.
    * The string will be put in the "content" field of the new dictionary.
@@ -215,6 +220,7 @@ export class ConversableAgent<T extends AIProvider<unknown>> extends Agent {
     message: string | Message,
     recipient: Agent,
     requestReply?: boolean | undefined,
+    silent?: boolean,
   ) {
     // When the agent composes and sends the message, the role of the message is "assistant"
     // unless it's "function".
@@ -225,7 +231,7 @@ export class ConversableAgent<T extends AIProvider<unknown>> extends Agent {
       )
     }
 
-    await recipient.receive(message, this, requestReply)
+    await recipient.receive(message, this, requestReply, silent)
   }
 
   /**
@@ -234,7 +240,11 @@ export class ConversableAgent<T extends AIProvider<unknown>> extends Agent {
    * @param message
    * @param sender
    */
-  private processReceivedMessage(message: string | Message, sender: Agent) {
+  private processReceivedMessage(
+    message: string | Message,
+    sender: Agent,
+    silent?: boolean,
+  ) {
     const converted = ConversableAgent.messageToDict(message)
     const valid = this.appendAiMessage(message, 'user', sender)
     if (!valid) {
@@ -242,15 +252,19 @@ export class ConversableAgent<T extends AIProvider<unknown>> extends Agent {
         "Received message can't be converted into a valid ChatCompletion message. Either content or function_call must be provided.",
       )
     }
-    this.onMessageReceived?.({role: 'user', ...converted}, sender)
+
+    if (!silent) {
+      this.onMessageReceived?.({role: 'user', ...converted}, sender)
+    }
   }
 
   async receive(
     message: string | Message,
     sender: Agent,
     requestReply?: boolean,
+    silent?: boolean,
   ) {
-    this.processReceivedMessage(message, sender)
+    this.processReceivedMessage(message, sender, silent)
     if (
       requestReply === false ||
       (requestReply === undefined && !this.replyAtReceive.get(sender))
@@ -386,11 +400,10 @@ export class ConversableAgent<T extends AIProvider<unknown>> extends Agent {
    * @param config
    */
   public async generateAiReply(messages?: Message[], sender?: Agent) {
-    if (!sender) {
-      throw new Error('Sender must be provided.')
-    }
-
     if (!messages) {
+      if (!sender) {
+        throw new Error('Sender must be provided.')
+      }
       messages = this.chatMessages.get(sender) || []
     }
 
@@ -554,13 +567,36 @@ export class ConversableAgent<T extends AIProvider<unknown>> extends Agent {
     this._messages.set(sender, [])
   }
 
-  //  def generate_init_message(self, **context) -> Union[str, Dict]:
-  //       """Generate the initial message for the agent.
+  /**
+   * Get last message exchanged with the agent..
+   * @param {Agent} agent agent (Agent): The agent in the conversation.
+        If no agent is provided and more than one agent's conversations are found, an error will be raised.
+        If no agent is provided and only one conversation is found, the last message of the only conversation will be returned.
+   * @returns The last message or null if there are no messages.
+   */
+  getLastMessage(agent?: Agent) {
+    const messages = this.chatMessages
 
-  //       Override this function to customize the initial message based on user's request.
-  //       If not overriden, "message" needs to be provided in the context.
-  //       """
-  //       return context["message"]
+    if (!agent) {
+      if (messages.size === 0) {
+        return null
+      }
+      if (messages.size === 1) {
+        for (const sender of messages.values()) {
+          return sender[sender.length - 1]
+        }
+      }
+      throw new Error(
+        'More than one conversation is found. Please specify the sender to get the last message.',
+      )
+    }
+
+    const sender = messages.get(agent)
+    if (!sender) {
+      return null
+    }
+    return sender[sender.length - 1]
+  }
 
   reset(): void {
     throw new Error('Method not implemented.')

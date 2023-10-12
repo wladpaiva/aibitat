@@ -48,6 +48,7 @@ export abstract class Agent {
     message: string | Message,
     sender: Agent,
     requestReply?: boolean,
+    silent?: boolean,
   ): Promise<void>
 
   /**
