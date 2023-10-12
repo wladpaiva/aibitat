@@ -11,19 +11,14 @@ export type Callable = (
   messages?: Message[],
   sender?: Agent,
   config?: LlmConfig,
-) => Promise<
-  | {
-      success: false
-      reply: null
-    }
-  | {
-      success: true
-      reply: string
-    }
->
+) => Promise<{
+  success: boolean
+  reply: string | null
+}>
 export type LlmConfig = {
   // TODO: Add types for this
 }
+export type HumanInputMode = 'TERMINATE' | 'ALWAYS' | 'NEVER'
 
 export type ReplyFunc = {
   /**

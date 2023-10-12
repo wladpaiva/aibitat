@@ -4,6 +4,9 @@ import {
   type ConversableAgentConfig,
 } from './conversable-agent'
 
+export type UserProxyAgentConfig<T extends AIProvider<unknown>> =
+  ConversableAgentConfig<T>
+
 /**
  * A proxy agent for the user, that can execute code and provide feedback to the other agents.
  *
@@ -18,13 +21,12 @@ import {
 export class UserProxyAgent<
   T extends AIProvider<unknown>,
 > extends ConversableAgent<T> {
-  constructor(config: ConversableAgentConfig<T>) {
-    const {
-      // humanInputMode = 'ALWAYS',
-      ...rest
-    } = config
+  constructor(config: UserProxyAgentConfig<T>) {
+    const {humanInputMode = 'ALWAYS', ...rest} = config
 
     super({
+      humanInputMode,
+      systemMessage: '',
       ...rest,
     })
   }

@@ -20,6 +20,7 @@
   },
   "dependencies": {
     "ai": "^2.2.14",
+    "debug": "^4.3.4",
     "openai": "^4.11.1"
   },
   "nano-staged": {

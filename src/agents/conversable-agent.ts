@@ -1,71 +1,19 @@
-import {OpenAIStream, StreamingTextResponse} from 'ai'
-import OpenAI, {ClientOptions} from 'openai'
+import debug from 'debug'
 
 import {AIProvider} from '../providers/ai-provider'
-import type {Callable, LlmConfig, Message, ReplyFunc, Role} from '../types'
+import type {
+  Callable,
+  HumanInputMode,
+  LlmConfig,
+  Message,
+  ReplyFunc,
+  Role,
+} from '../types'
 import {Agent} from './agent'
 
-/**
- * The model to use for the OpenAI API.
- */
-type Model = OpenAI.Chat.Completions.ChatCompletionCreateParams['model']
+const log = debug('autogen:agent')
 
-/**
- * The configuration for the OpenAI provider.
- */
-export type OpenAIProviderConfig = {
-  /**
-   * The options for the OpenAI client.
-   * @default {apiKey: process.env.OPENAI_API_KEY}
-   */
-  options?: ClientOptions
-  /**
-   * The model to use for the OpenAI API.
-   * @default 'gpt-3.5-turbo'
-   */
-  model?: Model
-}
-
-/**
- * The provider for the OpenAI API.
- */
-export class OpenAIProvider extends AIProvider<OpenAI> {
-  private model: Model
-
-  constructor(config: OpenAIProviderConfig = {}) {
-    const {
-      options = {
-        apiKey: process.env.OPENAI_API_KEY,
-      },
-      model = 'gpt-3.5-turbo',
-    } = config
-
-    const client = new OpenAI(options)
-
-    super(client)
-
-    this.model = model
-  }
-
-  /**
-   * Create a completion based on the received messages.
-   *
-   * @param messages A list of messages to send to the OpenAI API.
-   * @returns The completion.
-   */
-  async create(messages: Message[]) {
-    const response = await this.client.chat.completions.create({
-      model: this.model,
-      stream: true,
-      messages: messages!,
-    })
-
-    const stream = OpenAIStream(response)
-    const result = new StreamingTextResponse(stream)
-    return await result.text()
-  }
-}
-
+type TerminatingMessageFunc = (message: Message) => boolean
 export type ConversableAgentConfig<T extends AIProvider<unknown>> = {
   /**
    * The name of the agent.
@@ -91,7 +39,7 @@ export type ConversableAgentConfig<T extends AIProvider<unknown>> = {
   /**
    * A termination message function.
    */
-  isTerminationMsg?: Callable
+  isTerminationMsg?: TerminatingMessageFunc
 
   /**
    * Max consecutive auto replies.
@@ -103,7 +51,7 @@ export type ConversableAgentConfig<T extends AIProvider<unknown>> = {
    * The human input mode.
    * @default "TERMINATE"
    */
-  // humanInputMode?: HumanInputMode
+  humanInputMode?: HumanInputMode
 
   /**
    * A map of functions.
@@ -144,14 +92,22 @@ export class ConversableAgent<T extends AIProvider<unknown>> extends Agent {
   private defaultAutoReply: string
   private provider: T
   private _systemMessage: Message[]
+  private humanInputMode: HumanInputMode
+  private isTerminationMsg: TerminatingMessageFunc
+  private replyAtReceive: Map<Agent, boolean> = new Map()
+  private consecutiveAutoReplyCounter: Map<Agent, number> = new Map()
+  private maxConsecutiveAutoReply: number
 
   constructor(config: ConversableAgentConfig<T>) {
     const {
       name,
       provider,
       onMessageReceived,
-      systemMessage = '',
+      systemMessage = 'You are a helpful AI Assistant.',
       defaultAutoReply = '',
+      humanInputMode = 'TERMINATE',
+      isTerminationMsg = message => !!message.content?.endsWith('TERMINATE'),
+      maxConsecutiveAutoReply = 100,
     } = config
 
     super(name)
@@ -160,6 +116,10 @@ export class ConversableAgent<T extends AIProvider<unknown>> extends Agent {
     this._messages = new Map<Agent, Message[]>()
     this.onMessageReceived = onMessageReceived
     this.defaultAutoReply = defaultAutoReply
+    this.humanInputMode = humanInputMode
+    this.isTerminationMsg = isTerminationMsg
+    this.maxConsecutiveAutoReply = maxConsecutiveAutoReply
+
     this._systemMessage = [
       {
         content: systemMessage,
@@ -181,10 +141,10 @@ export class ConversableAgent<T extends AIProvider<unknown>> extends Agent {
     //   trigger: this,
     //   replyFunc: this.generate_function_call_reply,
     // });
-    // this.registerReply({
-    //   trigger: this,
-    //   replyFunc: this.check_termination_and_human_reply,
-    // });
+    this.registerReply({
+      trigger: this,
+      replyFunc: this.checkTerminationAndHumanReply,
+    })
   }
 
   /**
@@ -291,7 +251,10 @@ export class ConversableAgent<T extends AIProvider<unknown>> extends Agent {
     requestReply?: boolean,
   ) {
     this.processReceivedMessage(message, sender)
-    if (!requestReply) {
+    if (
+      requestReply === false ||
+      (requestReply === undefined && !this.replyAtReceive.get(sender))
+    ) {
       return
     }
 
@@ -442,6 +405,161 @@ export class ConversableAgent<T extends AIProvider<unknown>> extends Agent {
       reply,
     } as const
   }
+
+  /**
+   * Check if the conversation should be terminated, and if human reply is provided.
+   * @param messages
+   * @param sender
+   * @param config
+   * @returns
+   */
+  public async checkTerminationAndHumanReply(
+    messages?: Message[],
+    sender?: Agent,
+  ) {
+    if (!sender) {
+      throw new Error('Sender must be provided.')
+    }
+
+    if (!messages) {
+      messages = this.chatMessages.get(sender!) || []
+    }
+
+    const message = messages[messages.length - 1]
+    let reply = ''
+
+    if (this.humanInputMode === 'ALWAYS') {
+      // `Provide feedback to ${sender.name}. Press enter to skip and use auto-reply, or type 'exit' to end the conversation: `,
+      // TODO: should let human know that can use auto-reply
+      reply = await this.getHumanInput(true)
+
+      if (this.isTerminationMsg(message)) {
+        reply = 'exit'
+      }
+    } else {
+      const x = this.consecutiveAutoReplyCounter.get(sender) || 0
+      if (x >= this.maxConsecutiveAutoReply) {
+        if (this.humanInputMode === 'NEVER') {
+          reply = 'exit'
+        } else {
+          const terminate = this.isTerminationMsg(message)
+          // TODO: should let human know that can use auto-reply if terminate is true
+          reply = await this.getHumanInput(true)
+          reply = reply || !terminate ? reply : 'exit'
+        }
+      } else if (this.isTerminationMsg(message)) {
+        if (this.humanInputMode === 'NEVER') {
+          reply = 'exit'
+        } else {
+          reply = await this.getHumanInput()
+          reply = reply || 'exit'
+        }
+      }
+    }
+
+    // stop the conversation
+    if (reply === 'exit') {
+      this.consecutiveAutoReplyCounter.set(sender, 0)
+      return {
+        success: true,
+        reply: null,
+      } as const
+    }
+
+    // send the human reply
+    if (reply || this.maxConsecutiveAutoReply === 0) {
+      this.consecutiveAutoReplyCounter.set(sender, 0)
+      return {
+        success: true,
+        reply,
+      } as const
+    }
+
+    // increment the consecutive_auto_reply_counter
+    const x = this.consecutiveAutoReplyCounter.get(sender) || 0
+    this.consecutiveAutoReplyCounter.set(sender, x + 1)
+    if (this.humanInputMode !== 'NEVER') {
+      log('🤖 USING AUTO REPLY...')
+    }
+
+    return {
+      success: false,
+      reply: null,
+    } as const
+  }
+
+  /**
+   * Get human input.
+   * @returns The human input.
+   */
+  public async getHumanInput(autoReply = false) {
+    log('🤖 GETTING HUMAN INPUT...', {autoReply})
+    return ''
+  }
+
+  /**
+   * Initiate a chat with the recipient agent.
+   * Reset the consecutive auto reply counter.
+   * If `clearHistory` is True, the chat history with the recipient agent will be cleared.
+   * `generateInitMessage` is called to generate the initial message for the agent.
+   * @param recipient the recipient agent.
+   * @param clearHistory whether to clear the chat history with the agent.
+   * @param context Any context information. "message" needs to be provided if the `generate_init_message` method is not overridden.
+   */
+  public initiateChat<T extends AIProvider<unknown>>(
+    recipient: ConversableAgent<T>,
+    message: string,
+    clearHistory = true,
+  ) {
+    this.prepareChat(recipient, clearHistory)
+    this.send(message, recipient)
+  }
+
+  private prepareChat<T extends AIProvider<unknown>>(
+    recipient: ConversableAgent<T>,
+    clearHistory: boolean,
+  ) {
+    this.resetConsecutiveAutoReplyCounter(recipient)
+    recipient.resetConsecutiveAutoReplyCounter(this)
+
+    this.replyAtReceive.set(recipient, true)
+    recipient.replyAtReceive.set(this, true)
+
+    if (clearHistory) {
+      this.clearHistory(recipient)
+      recipient.clearHistory(this)
+    }
+  }
+
+  public resetConsecutiveAutoReplyCounter(sender?: Agent) {
+    if (!sender) {
+      this.consecutiveAutoReplyCounter = new Map()
+      return
+    }
+    this.consecutiveAutoReplyCounter.set(sender, 0)
+  }
+
+  /**
+   * Clear the chat history of the agent.
+   * @param sender the agent with whom the chat history to clear. If None, clear the chat history with all agents.
+   * @returns
+   */
+  public clearHistory(sender?: Agent) {
+    if (!sender) {
+      this._messages.clear()
+      return
+    }
+
+    this._messages.set(sender, [])
+  }
+
+  //  def generate_init_message(self, **context) -> Union[str, Dict]:
+  //       """Generate the initial message for the agent.
+
+  //       Override this function to customize the initial message based on user's request.
+  //       If not overriden, "message" needs to be provided in the context.
+  //       """
+  //       return context["message"]
 
   reset(): void {
     throw new Error('Method not implemented.')
