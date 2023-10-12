@@ -1,8 +1,8 @@
-import {AIProvider} from '../providers/ai-provider'
+import {AIProvider} from '../providers/ai-provider.ts'
 import {
   ConversableAgent,
   type ConversableAgentConfig,
-} from './conversable-agent'
+} from './conversable-agent.ts'
 
 export type AssistantAgentConfig<T extends AIProvider<unknown>> = Omit<
   ConversableAgentConfig<T>,

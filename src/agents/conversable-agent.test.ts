@@ -1,8 +1,8 @@
 import {beforeEach, expect, mock, test} from 'bun:test'
 import OpenAI from 'openai'
 
-import {AIProvider} from '../providers/ai-provider'
-import {ConversableAgent} from './conversable-agent'
+import {AIProvider} from '../providers/ai-provider.ts'
+import {ConversableAgent} from './conversable-agent.ts'
 
 // HACK: Mock the AI provider.
 // This is still needed because Bun doesn't support mocking modules yet.

@@ -2,8 +2,8 @@ import {OpenAIStream, StreamingTextResponse} from 'ai'
 import debug from 'debug'
 import OpenAI, {ClientOptions} from 'openai'
 
-import {Message} from '../types'
-import {AIProvider} from './ai-provider'
+import {Message} from '../types.ts'
+import {AIProvider} from './ai-provider.ts'
 
 const log = debug('autogen:provider')
 

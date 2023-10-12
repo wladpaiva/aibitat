@@ -1,6 +1,6 @@
 import debug from 'debug'
 
-import {AIProvider} from '../providers/ai-provider'
+import {AIProvider} from '../providers/ai-provider.ts'
 import type {
   Callable,
   HumanInputMode,
@@ -8,8 +8,8 @@ import type {
   Message,
   ReplyFunc,
   Role,
-} from '../types'
-import {Agent} from './agent'
+} from '../types.ts'
+import {Agent} from './agent.ts'
 
 const log = debug('autogen:agent')
 

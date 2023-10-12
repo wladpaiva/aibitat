@@ -1,4 +1,4 @@
-import {Message} from '../types'
+import {Message} from '../types.ts'
 
 /**
  * (In preview) An abstract class for AI agent.

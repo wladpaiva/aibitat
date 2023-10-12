@@ -1,6 +1,6 @@
 import type OpenAI from 'openai'
 
-import type {Agent} from './agents/agent'
+import type {Agent} from './agents/agent.ts'
 
 /**
  * OpenAI Chat API message.
