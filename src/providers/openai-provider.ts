@@ -34,6 +34,24 @@ export type OpenAIProviderConfig = {
  */
 export class OpenAIProvider extends AIProvider<OpenAI> {
   private model: Model
+  static COST_PER_TOKEN = {
+    'gpt-4': {
+      input: 0.03,
+      output: 0.06,
+    },
+    'gpt-4-32k': {
+      input: 0.06,
+      output: 0.12,
+    },
+    'gpt-3.5-turbo': {
+      input: 0.0015,
+      output: 0.002,
+    },
+    'gpt-3.5-turbo-16k': {
+      input: 0.003,
+      output: 0.004,
+    },
+  }
 
   constructor(config: OpenAIProviderConfig = {}) {
     const {
@@ -61,12 +79,50 @@ export class OpenAIProvider extends AIProvider<OpenAI> {
 
     const response = await this.client.chat.completions.create({
       model: this.model,
-      stream: true,
+      // stream: true,
       messages: messages!,
     })
 
-    const stream = OpenAIStream(response)
-    const result = new StreamingTextResponse(stream)
-    return await result.text()
+    log('cost: $', this.getCost(response.usage))
+
+    return response.choices[0].message.content!
+
+    // const stream = OpenAIStream(response)
+    // const result = new StreamingTextResponse(stream)
+    // return await result.text()
+  }
+
+  /**
+   * Get the cost of the completion.
+   *
+   * @param completion The completion to get the cost for.
+   * @returns The cost of the completion.
+   */
+  getCost(usage: OpenAI.Completions.CompletionUsage | undefined) {
+    if (!usage) {
+      return 'unknown'
+    }
+
+    // regex to remove the version number from the string
+    const model = this.model.replace(/-(\d{4})$/, '')
+
+    if (!(model in OpenAIProvider.COST_PER_TOKEN)) {
+      return 'unknown'
+    }
+    log('model:', model)
+
+    const costPerToken =
+      OpenAIProvider.COST_PER_TOKEN[
+        model as keyof typeof OpenAIProvider.COST_PER_TOKEN
+      ]
+
+    const inputCost = (usage.prompt_tokens / 1000) * costPerToken.input
+    const outputCost = (usage.completion_tokens / 1000) * costPerToken.output
+    const total = inputCost + outputCost
+
+    return Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+    }).format(total)
   }
 }

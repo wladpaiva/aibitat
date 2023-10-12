@@ -506,13 +506,13 @@ export class ConversableAgent<T extends AIProvider<unknown>> extends Agent {
    * @param clearHistory whether to clear the chat history with the agent.
    * @param context Any context information. "message" needs to be provided if the `generate_init_message` method is not overridden.
    */
-  public initiateChat<T extends AIProvider<unknown>>(
+  public async initiateChat<T extends AIProvider<unknown>>(
     recipient: ConversableAgent<T>,
     message: string,
     clearHistory = true,
   ) {
     this.prepareChat(recipient, clearHistory)
-    this.send(message, recipient)
+    await this.send(message, recipient)
   }
 
   private prepareChat<T extends AIProvider<unknown>>(
