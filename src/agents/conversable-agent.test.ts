@@ -8,7 +8,7 @@ import {ConversableAgent} from './conversable-agent'
 // This is still needed because Bun doesn't support mocking modules yet.
 // Neither mocking the HTTP requests.
 const ai = {
-  create: mock(() => Promise.resolve('🤖')),
+  create: mock(() => Promise.resolve('👍')),
 }
 const provider = ai as unknown as AIProvider<OpenAI>
 
@@ -21,26 +21,30 @@ beforeEach(() => {
  */
 
 test('should talk to each other', async () => {
-  const first = new ConversableAgent({
-    name: '🔥',
+  ai.create.mockImplementationOnce(() => Promise.resolve('TERMINATE'))
+
+  const human = new ConversableAgent({
+    name: '🧑',
     provider,
   })
-  const second = new ConversableAgent({
-    name: '🔴',
+  const bot = new ConversableAgent({
+    name: '🤖',
     provider,
   })
 
-  await first.send('Hello, how are you?', second, true)
+  await human.initiateChat(bot, '2 + 2 = 4?')
 
-  expect(first.chatMessages.get(second)!.length).toBe(2)
-  expect(second.chatMessages.get(first)!.length).toBe(2)
+  expect(human.chatMessages.get(bot)!.length).toBe(2)
+  // expect human has the TERMINATE from the bot
+  expect(human.chatMessages.get(bot)![1].content).toBe('TERMINATE')
+  expect(bot.chatMessages.get(human)!.length).toBe(2)
   expect(provider.create).toHaveBeenCalled()
   expect(provider.create).toHaveBeenCalledTimes(1)
 })
 
 // 1. Configuration
 
-test('should start with the system message', async () => {
+test('should have a system message', async () => {
   const systemMessage = 'You are a 🤖.'
 
   const first = new ConversableAgent({
@@ -60,13 +64,46 @@ test('should start with the system message', async () => {
   expect(ai.create.mock.calls[0][0][0].content).toEqual(systemMessage)
 })
 
-test.todo('should check if it is a termination message', async () => {
-  // TODO: 3. check_termination_and_human_reply
+test('should terminate the chat', async () => {
+  ai.create.mockImplementationOnce(() => Promise.resolve('✅'))
+
+  const human = new ConversableAgent({
+    name: '🧑',
+    isTerminationMsg: message => message.content === '✅',
+    provider,
+  })
+
+  const bot = new ConversableAgent({
+    name: '🤖',
+    isTerminationMsg: message => message.content === '✅',
+    provider,
+  })
+
+  await human.initiateChat(bot, '2 + 2 = 4?')
+
+  // the chat gets in a loop if the bot doesn't terminate
+  expect(true).toBe(true)
 })
 
-test.todo('should check max consecutives auto replies', async () => {})
+test('should not engage in infinity conversations', async () => {
+  const human = new ConversableAgent({
+    name: '🧑',
+    provider,
+  })
 
-test.todo('should check humnaInputMode', async () => {})
+  const bot = new ConversableAgent({
+    name: '🤖',
+    humanInputMode: 'NEVER',
+    provider,
+  })
+
+  await human.initiateChat(bot, '2 + 2 = 4?')
+
+  // the chat gets in a loop if the bot doesn't terminate
+  expect(true).toBe(true)
+})
+
+test.todo('should auto-reply only when user skip engaging', async () => {})
 
 test.todo(
   'should check if the message is a function call and call the function',

@@ -438,6 +438,7 @@ export class ConversableAgent<T extends AIProvider<unknown>> extends Agent {
       }
     } else {
       const x = this.consecutiveAutoReplyCounter.get(sender) || 0
+
       if (x >= this.maxConsecutiveAutoReply) {
         if (this.humanInputMode === 'NEVER') {
           reply = 'exit'
