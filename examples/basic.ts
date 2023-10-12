@@ -1,5 +1,4 @@
-import {AssistantAgent, UserProxyAgent} from './agents'
-import {OpenAIProvider} from './providers'
+import {AssistantAgent, OpenAIProvider, UserProxyAgent} from '../src'
 
 console.log('🚀 starting')
 console.time('🚀 finishing')
