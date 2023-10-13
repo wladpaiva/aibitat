@@ -10,9 +10,9 @@ provider agnostic and can be used with any provider that implements the
 ## Features
 
 - [x] Automated reply with loop prevention
-- [] Group chats
-- [] Function execution
-- [] Code execution
+- [x] Group chats
+- [ ] Function execution
+- [ ] Code execution
 
 ## Contributing
 
