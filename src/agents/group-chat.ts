@@ -196,12 +196,10 @@ export class GroupChatManager<
         continue
       }
 
-      // if (message.role !== 'function') {
-      //   // set the name to speaker's name if the role is not function
-      //   message.name = speaker.name
-      // }
-
-      this.group.messages.push(message)
+      this.group.messages.push({
+        ...message,
+        name: message.role === 'function' ? 'function' : speaker.name,
+      })
 
       // broadcast the message to all agents except the speaker
       for (const agent of this.group.agents) {
