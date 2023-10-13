@@ -117,7 +117,3 @@ test.todo('should execute code', async () => {})
 test.todo('should have initial messages', async () => {})
 
 // TODO: 4. Cache
-// TODO: 5. UserProxy
-// TODO: 6. Assistant
-// TODO: 7. Group
-// TODO: 8. GroupManager

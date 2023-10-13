@@ -18,27 +18,30 @@ const provider = new OpenAIProvider({
   model: 'gpt-3.5-turbo',
 })
 
-const israelis = new AssistantAgent({
-  name: 'israelis',
-  systemMessage: 'You are a jew.',
+const mathematician = new AssistantAgent({
+  name: 'mathematician',
+  systemMessage:
+    "You are a mathematician and only solve math problems. Don't review the result neither calculate anything else.",
   provider,
   onMessageReceived,
 })
-const palestinian = new AssistantAgent({
-  name: 'palestinian',
-  systemMessage: 'You are a muslin.',
-  provider,
-  onMessageReceived,
-})
-
-const user = new UserProxyAgent({
-  name: 'user',
-  systemMessage: 'You are a human.',
+const pr = new AssistantAgent({
+  name: 'reviewer',
+  systemMessage:
+    'You are a peer-reviewer. Check the result from mathematician and then give to client. Just confirm, no talk. Do not revisit the problem.',
   provider,
   onMessageReceived,
 })
 
-const group = new GroupChat([israelis, palestinian, user])
+const proxy = new UserProxyAgent({
+  name: 'client',
+  systemMessage:
+    'You do not review neither solve math problems. You can also ask for reviewer to review the result. Reply "TERMINATE" in the end when everything is done.',
+  provider,
+  onMessageReceived,
+})
+
+const group = new GroupChat([mathematician, pr, proxy])
 
 const manager = new GroupChatManager({
   group,
@@ -46,7 +49,7 @@ const manager = new GroupChatManager({
   onMessageReceived,
 })
 
-await user.initiateChat(manager, 'Who is right about Gaza?')
+await proxy.initiateChat(manager, '2 + 2 = ?')
 
 console.timeEnd('🚀 finishing')
 
