@@ -10,7 +10,8 @@ const log = debug('autogen:provider')
 /**
  * The model to use for the OpenAI API.
  */
-type Model = OpenAI.Chat.Completions.ChatCompletionCreateParams['model']
+export type OpenAIModel =
+  OpenAI.Chat.Completions.ChatCompletionCreateParams['model']
 
 /**
  * The configuration for the OpenAI provider.
@@ -25,7 +26,7 @@ export type OpenAIProviderConfig = {
    * The model to use for the OpenAI API.
    * @default 'gpt-3.5-turbo'
    */
-  model?: Model
+  model?: OpenAIModel
 }
 
 /**
@@ -33,7 +34,7 @@ export type OpenAIProviderConfig = {
  * By default, the model is set to 'gpt-3.5-turbo'.
  */
 export class OpenAIProvider extends AIProvider<OpenAI> {
-  private model: Model
+  private model: OpenAIModel
   static COST_PER_TOKEN = {
     'gpt-4': {
       input: 0.03,
