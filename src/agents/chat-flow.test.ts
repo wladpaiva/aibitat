@@ -141,7 +141,7 @@ describe('direct message', () => {
 
     await flow.start(defaultStart)
 
-    expect(callback).toHaveBeenCalledTimes(1)
+    expect(callback).toHaveBeenCalledTimes(2)
   })
 
   test('should always interrupt interaction after each reply', async () => {
