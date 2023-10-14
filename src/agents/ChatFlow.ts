@@ -192,8 +192,8 @@ export class ChatFlow {
     const reply = await this.reply({from, to})
 
     const interrupt =
-      this.config[from].interrupt ||
-      (this.defaultInterrupt || this.config[from].type === 'assistant'
+      this.config[to].interrupt ||
+      (this.defaultInterrupt || this.config[to].type === 'assistant'
         ? 'ALWAYS'
         : 'NEVER')
 
@@ -261,7 +261,7 @@ export class ChatFlow {
     return content
   }
 
-  public continue() {
+  public continue(feedback?: string) {
     const lastChat = this._chats.at(-1)
     if (!lastChat) {
       throw new Error('No chat to continue')
@@ -269,6 +269,14 @@ export class ChatFlow {
 
     const {from, to} = lastChat
     if (!this.hasReachedMaximumRounds(from, to)) {
+      if (feedback) {
+        return this.start({
+          from: to,
+          to: from,
+          content: feedback,
+        })
+      }
+
       return this.chat({from: to, to: from})
     }
   }

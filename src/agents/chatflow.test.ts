@@ -181,13 +181,12 @@ test('should trigger an event when a interaction is needed', async () => {
 test('should auto-reply only when user skip engaging', async () => {
   ai.create.mockImplementation(() => Promise.resolve('...'))
 
+  const flow = new ChatFlow(defaultFlow)
   // HACK: we should use `expect.assertions(1)` here but
   // bun has not implemented it yet.
   // so I have to work around it.
   // https://github.com/oven-sh/bun/issues/1825
   const p = new Promise(async resolve => {
-    const flow = new ChatFlow(defaultFlow)
-
     flow.on('interrupt', () => {
       // console.log('🔥 ~ interrupted')
       flow.continue()
@@ -200,22 +199,26 @@ test('should auto-reply only when user skip engaging', async () => {
   })
 
   expect(p).resolves.toBeTrue()
+  expect(flow.chats).toHaveLength(100)
 })
 
-test.todo('should continue conversation with user`s feedback', async () => {
+test('should continue conversation with user`s feedback', async () => {
   ai.create.mockImplementation(() => Promise.resolve('...'))
+
+  const flow = new ChatFlow({
+    ...defaultFlow,
+    maxRounds: 10,
+  })
 
   // HACK: we should use `expect.assertions(1)` here but
   // bun has not implemented it yet.
   // so I have to work around it.
   // https://github.com/oven-sh/bun/issues/1825
   const p = new Promise(async resolve => {
-    const flow = new ChatFlow(defaultFlow)
-
-    flow.on('interrupt', () => {
-      // console.log('🔥 ~ interrupted')
-      //   flow.continue('my feedback')
-      if (flow.chats.length === 100) {
+    flow.on('interrupt', a => {
+      if (flow.chats.length < 10) {
+        flow.continue('my feedback')
+      } else {
         resolve(true)
       }
     })
@@ -224,11 +227,11 @@ test.todo('should continue conversation with user`s feedback', async () => {
   })
 
   expect(p).resolves.toBeTrue()
+  expect(flow.chats[2].from).toBe('🧑')
+  expect(flow.chats[2].to).toBe('🤖')
+  expect(flow.chats[2].content).toBe('my feedback')
 })
 
-test.todo(
-  'should check if the message is a function call and call the function',
-  async () => {},
-)
+test.todo('should call a function', async () => {})
 
 test.todo('should execute code', async () => {})
