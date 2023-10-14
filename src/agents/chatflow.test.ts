@@ -2,40 +2,41 @@ import {beforeEach, expect, mock, test} from 'bun:test'
 import OpenAI from 'openai'
 
 import {AIProvider} from '../providers/ai-provider.ts'
-import {ChatFlow} from './ChatFlow.ts'
+import {ChatFlow, type ChatFlowProps} from './ChatFlow.ts'
 
 // HACK: Mock the AI provider.
 // This is still needed because Bun doesn't support mocking modules yet.
 // Neither mocking the HTTP requests.
 export const ai = {
-  create: mock(() => Promise.resolve('some random reply')),
+  create: mock(() => {}),
 }
 const provider = ai as unknown as AIProvider<OpenAI>
 
 beforeEach(() => {
-  ai.create.mockReset()
+  ai.create.mockClear()
+  ai.create.mockImplementation(() => Promise.resolve('TERMINATE'))
 })
 
+const defaultFlow: ChatFlowProps = {
+  provider,
+  nodes: {
+    '🧑': '🤖',
+  },
+  config: {
+    '🧑': {type: 'assistant'},
+    '🤖': {type: 'agent'},
+  },
+}
+
+const defaultStart = {
+  from: '🧑',
+  to: '🤖',
+  content: '2 + 2 = 4?',
+}
+
 test('should reply a chat', async () => {
-  // mock the AI provider to not get stuck in a loop
-  ai.create.mockImplementationOnce(() => Promise.resolve('TERMINATE'))
-
-  const flow = new ChatFlow({
-    provider,
-    nodes: {
-      '🧑': '🤖',
-    },
-    config: {
-      '🧑': {type: 'assistant'},
-      '🤖': {type: 'agent'},
-    },
-  })
-
-  await flow.start({
-    from: '🧑',
-    to: '🤖',
-    content: '2 + 2 = 4?',
-  })
+  const flow = new ChatFlow(defaultFlow)
+  await flow.start(defaultStart)
 
   expect(flow.chats).toHaveLength(2)
   // expect human has the TERMINATE from the bot
@@ -48,89 +49,64 @@ test('should reply a chat', async () => {
 })
 
 test('should have a system message', async () => {
-  ai.create.mockImplementationOnce(() => Promise.resolve('TERMINATE'))
   const role = 'You are a 🤖.'
 
   const flow = new ChatFlow({
-    provider,
-    nodes: {
-      '🧑': '🤖',
-    },
+    ...defaultFlow,
     config: {
-      '🧑': {type: 'assistant'},
+      ...defaultFlow.config,
       '🤖': {type: 'agent', role},
     },
   })
 
-  await flow.start({
-    from: '🧑',
-    to: '🤖',
-    content: '2 + 2 = 4?',
-  })
+  await flow.start(defaultStart)
 
   expect(ai.create).toHaveBeenCalledTimes(1)
   // @ts-expect-error
   expect(ai.create.mock.calls[0][0][0].content).toEqual(role)
 })
 
-test('should interact with a reply', async () => {
+test('should keep chatting util its task is done', async () => {
   let i = 0
   ai.create.mockImplementation(() =>
-    Promise.resolve(i >= 10 ? 'TERMINATE' : `yes ${i++}`),
+    Promise.resolve(i >= 10 ? 'TERMINATE' : `... ${i++}`),
   )
 
   const flow = new ChatFlow({
-    provider,
-    nodes: {
-      '🧑': '🤖',
-    },
+    ...defaultFlow,
     config: {
-      '🧑': {type: 'assistant'},
-      '🤖': {type: 'agent'},
+      ...defaultFlow.config,
+      '🧑': {type: 'assistant', interrupt: 'NEVER'},
     },
   })
 
-  await flow.start({
-    from: '🧑',
-    to: '🤖',
-    content: '2 + 2 = 4?',
-  })
+  await flow.start(defaultStart)
 
   // the chat gets in a loop if the bot doesn't terminate
   expect(flow.chats).toHaveLength(12)
 })
 
 test('should not engage in infinity conversations', async () => {
+  ai.create.mockImplementation(() => Promise.resolve('...'))
+
   const flow = new ChatFlow({
-    provider,
+    ...defaultFlow,
     maxRounds: 4,
-    nodes: {
-      '🧑': '🤖',
-    },
     config: {
-      '🧑': {type: 'assistant'},
-      '🤖': {type: 'agent'},
+      ...defaultFlow.config,
+      '🧑': {type: 'assistant', interrupt: 'NEVER'},
     },
   })
 
-  await flow.start({
-    from: '🧑',
-    to: '🤖',
-    content: '2 + 2 = 4?',
-  })
+  await flow.start(defaultStart)
 
   expect(ai.create).toHaveBeenCalledTimes(3)
 })
 
 test('should have initial messages', async () => {
-  ai.create.mockImplementationOnce(() => Promise.resolve('TERMINATE'))
-
   const flow = new ChatFlow({
-    provider,
+    ...defaultFlow,
     maxRounds: 1,
-    nodes: {
-      '🧑': '🤖',
-    },
     chats: [
       {
         from: '🧑',
@@ -139,10 +115,6 @@ test('should have initial messages', async () => {
         state: 'success',
       },
     ],
-    config: {
-      '🧑': {type: 'assistant'},
-      '🤖': {type: 'agent'},
-    },
   })
 
   await flow.start({
@@ -161,34 +133,98 @@ test('should have initial messages', async () => {
 })
 
 test('should trigger an event when a reply is received', async () => {
-  ai.create.mockImplementationOnce(() => Promise.resolve('TERMINATE'))
-
-  const flow = new ChatFlow({
-    provider,
-    nodes: {
-      '🧑': '🤖',
-    },
-    config: {
-      '🧑': {type: 'assistant'},
-      '🤖': {type: 'agent'},
-    },
-  })
+  const flow = new ChatFlow(defaultFlow)
 
   const callback = mock(() => {})
   flow.on('reply', callback)
 
-  await flow.start({
-    from: '🧑',
-    to: '🤖',
-    content: '2 + 2 = 4?',
+  await flow.start(defaultStart)
+
+  expect(callback).toHaveBeenCalledTimes(1)
+})
+
+test('should always interrupt interaction after each reply', async () => {
+  ai.create.mockImplementation(() => Promise.resolve('...'))
+
+  const flow = new ChatFlow({
+    ...defaultFlow,
+    interrupt: 'ALWAYS',
   })
 
-  //   expect(callback).toHaveBeenCalledTimes(1)
-  expect(callback.mock.calls).toHaveLength(1)
-})
-test.todo('should trigger an event when a reply is needed', async () => {})
+  const callback = mock(() => {})
+  flow.on('interrupt', callback)
 
-test.todo('should auto-reply only when user skip engaging', async () => {})
+  await flow.start(defaultStart)
+
+  expect(callback).toHaveBeenCalledTimes(1)
+})
+
+test('should trigger an event when a interaction is needed', async () => {
+  ai.create.mockImplementation(() => Promise.resolve('...'))
+
+  const flow = new ChatFlow({
+    ...defaultFlow,
+    config: {
+      ...defaultFlow.config,
+      '🤖': {type: 'agent', interrupt: 'ALWAYS'},
+    },
+  })
+
+  const callback = mock(() => {})
+  flow.on('interrupt', callback)
+
+  await flow.start(defaultStart)
+
+  expect(flow.chats).toHaveLength(2)
+})
+
+test('should auto-reply only when user skip engaging', async () => {
+  ai.create.mockImplementation(() => Promise.resolve('...'))
+
+  // HACK: we should use `expect.assertions(1)` here but
+  // bun has not implemented it yet.
+  // so I have to work around it.
+  // https://github.com/oven-sh/bun/issues/1825
+  const p = new Promise(async resolve => {
+    const flow = new ChatFlow(defaultFlow)
+
+    flow.on('interrupt', () => {
+      // console.log('🔥 ~ interrupted')
+      flow.continue()
+      if (flow.chats.length === 100) {
+        resolve(true)
+      }
+    })
+
+    await flow.start(defaultStart)
+  })
+
+  expect(p).resolves.toBeTrue()
+})
+
+test.todo('should continue conversation with user`s feedback', async () => {
+  ai.create.mockImplementation(() => Promise.resolve('...'))
+
+  // HACK: we should use `expect.assertions(1)` here but
+  // bun has not implemented it yet.
+  // so I have to work around it.
+  // https://github.com/oven-sh/bun/issues/1825
+  const p = new Promise(async resolve => {
+    const flow = new ChatFlow(defaultFlow)
+
+    flow.on('interrupt', () => {
+      // console.log('🔥 ~ interrupted')
+      //   flow.continue('my feedback')
+      if (flow.chats.length === 100) {
+        resolve(true)
+      }
+    })
+
+    await flow.start(defaultStart)
+  })
+
+  expect(p).resolves.toBeTrue()
+})
 
 test.todo(
   'should check if the message is a function call and call the function',

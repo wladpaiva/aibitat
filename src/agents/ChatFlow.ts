@@ -19,19 +19,21 @@ export type ProviderConfig =
       provider: AIProvider<unknown>
     }
 
-type Interruptive = {
-  /** When the chat should be interrupted for feedbacks */
-  interrupt?: 'NEVER' | 'ALWAYS'
-}
-
 /**
  * Base config for ChatFlow nodes.
  */
-export type BaseNodeConfig = ProviderConfig &
-  Interruptive & {
-    /** The role this node will play in the conversation */
-    role?: string
-  }
+export type BaseNodeConfig = ProviderConfig & {
+  /** The role this node will play in the conversation */
+  role?: string
+  /**
+   * When the chat should be interrupted for feedbacks.
+   *
+   * - `assistant` nodes will ALWAYS interrupt the chat by default.
+   * - `manager` nodes will NEVER interrupt the chat by default.
+   * - `agent` nodes will NEVER interrupt the chat by default.
+   */
+  interrupt?: 'NEVER' | 'ALWAYS'
+}
 
 /**
  * Agents are fully autonomous and can solve tasks with LLM.
@@ -106,15 +108,28 @@ type History = Array<ChatState>
 /**
  * ChatFlow props.
  */
-type ChatFlowProps = Interruptive &
-  ProviderConfig & {
-    nodes: Nodes
-    config: Config
-    chats?: History
+export type ChatFlowProps = ProviderConfig & {
+  nodes: Nodes
+  config: Config
 
-    /** The maximum number of rounds to engage in a chat */
-    maxRounds?: number
-  }
+  /**
+   * Chat history between all nodes.
+   * @default []
+   */
+  chats?: History
+
+  /**
+   * The maximum number of rounds to engage in a chat
+   * @default 100
+   */
+  maxRounds?: number
+
+  /**
+   * When the chat should be interrupted for feedbacks
+   * @default 'NEVER'
+   */
+  interrupt?: 'NEVER' | 'ALWAYS'
+}
 
 /**
  * ChatFlow is a class that manages the flow of a chat.
@@ -126,7 +141,7 @@ export class ChatFlow {
   private emitter = new EventEmitter()
 
   private defaultProvider: AIProvider<unknown>
-  private defaultInterrupt?: Interruptive['interrupt']
+  private defaultInterrupt: ChatFlowProps['interrupt']
   private maxRounds: number
 
   private _chats: History
@@ -138,7 +153,7 @@ export class ChatFlow {
     this._chats = chats
     this.nodes = nodes
     this.config = config
-    this.defaultInterrupt = interrupt ?? 'ALWAYS'
+    this.defaultInterrupt = interrupt
     this.defaultProvider = this.createProvider(props)!
     this.maxRounds = maxRounds
   }
@@ -168,18 +183,26 @@ export class ChatFlow {
   }
 
   /**
-   * Keep chatting between two nodes.
+   * Recursively chat between two nodes.
    *
    * @param chat The nodes that are going to participate in the chat.
    * @param keepAlive Whether to keep the chat alive.
    */
   private async chat({from, to}: {from: string; to: string}, keepAlive = true) {
-    const result = await this.reply({from, to})
+    const reply = await this.reply({from, to})
 
-    if (
-      result === 'TERMINATE' ||
-      this.getHistory({from, to}).length >= this.maxRounds
-    ) {
+    const interrupt =
+      this.config[from].interrupt ||
+      (this.defaultInterrupt || this.config[from].type === 'assistant'
+        ? 'ALWAYS'
+        : 'NEVER')
+
+    if (interrupt === 'ALWAYS') {
+      this.emitter.emit('interrupt', {from, to, content: reply})
+      return
+    }
+
+    if (reply === 'TERMINATE' || this.hasReachedMaximumRounds(from, to)) {
       return
     }
 
@@ -189,8 +212,13 @@ export class ChatFlow {
     }
   }
 
+  private hasReachedMaximumRounds(from: string, to: string): boolean {
+    return this.getHistory({from, to}).length >= this.maxRounds
+  }
+
   /**
    * Ask the for the AI provider to generate a reply to the chat.
+   *
    * @param chat.to The node that sent the chat.
    * @param chat.from The node that will reply to the chat.
    */
@@ -233,6 +261,18 @@ export class ChatFlow {
     return content
   }
 
+  public continue() {
+    const lastChat = this._chats.at(-1)
+    if (!lastChat) {
+      throw new Error('No chat to continue')
+    }
+
+    const {from, to} = lastChat
+    if (!this.hasReachedMaximumRounds(from, to)) {
+      return this.chat({from: to, to: from})
+    }
+  }
+
   private getHistory({from, to}: {from: string; to: string}) {
     return this._chats.filter(chat => {
       const isSuccess = chat.state == 'success'
@@ -245,6 +285,7 @@ export class ChatFlow {
     })
   }
 
+  public on(event: 'interrupt', listener: (chat: ChatState) => void): this
   public on(event: 'reply', listener: (chat: ChatState) => void): this
 
   /**
@@ -253,7 +294,7 @@ export class ChatFlow {
    * @param listener
    * @returns
    */
-  public on(event: 'reply', listener: (chat: ChatState) => void) {
+  public on(event: string, listener: (...args: any[]) => void) {
     this.emitter.on(event, listener)
     return this
   }
