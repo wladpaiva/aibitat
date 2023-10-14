@@ -48,7 +48,10 @@ export type Agent = BaseNodeConfig & {
 export type Manager = BaseNodeConfig & {
   type: 'manager'
 
-  /** The maximum number of rounds a group will talk to each member */
+  /**
+   * The maximum number of rounds a group will talk to each member
+   * @default 10
+   */
   maxRounds?: number
 }
 
@@ -81,7 +84,7 @@ export type Config = {
  * Array values are interpreted as a group of nodes.
  */
 type Nodes = {
-  [K in keyof Config]: string
+  [K in keyof Config]: string | string[]
 }
 
 /**
@@ -188,32 +191,137 @@ export class ChatFlow {
    * @param chat The nodes that are going to participate in the chat.
    * @param keepAlive Whether to keep the chat alive.
    */
-  private async chat({from, to}: {from: string; to: string}, keepAlive = true) {
-    const reply = await this.reply({from, to})
+  private async chat(message: {from: string; to: string}, keepAlive = true) {
+    // check if the message is for a group
+    // if it is, select the next node to chat with from the group
+    // and then ask them to reply.
+    const fromNode = this.config[message.from]
+    const isManager = fromNode.type === 'manager'
+
+    if (isManager) {
+      // select a node from the group
+      const nextNode = await this.selectNext(message.from)
+
+      if (!nextNode) {
+        // TODO: should it throw an error or keep the chat alive when there is no node to chat with in the group?
+        // maybe it should wrap up the chat and reply to the original node
+        // For now, it will terminate the chat
+        return
+      }
+
+      const group = this.nodes[message.from]
+      if (!Array.isArray(group)) {
+        throw new Error(
+          `Group ${message.from} is not defined as an array in your nodes`,
+        )
+      }
+
+      const {maxRounds = 10} = fromNode
+      // get chats only from the group's nodes
+      const rounds = this.getHistory({to: message.from}).filter(chat =>
+        group.includes(chat.from),
+      ).length
+
+      if (rounds < maxRounds) {
+        await this.chat({from: nextNode, to: message.from})
+      }
+      return
+    }
+
+    // If it's a direct message, reply to the message
+    const reply = await this.reply(message)
 
     const interrupt =
-      this.config[to].interrupt ||
-      (this.defaultInterrupt || this.config[to].type === 'assistant'
+      this.config[message.to].interrupt ||
+      (this.defaultInterrupt || this.config[message.to].type === 'assistant'
         ? 'ALWAYS'
         : 'NEVER')
 
     if (interrupt === 'ALWAYS') {
-      this.emitter.emit('interrupt', {from, to, content: reply})
+      this.emitter.emit('interrupt', {...message, content: reply})
       return
     }
 
-    if (reply === 'TERMINATE' || this.hasReachedMaximumRounds(from, to)) {
+    if (
+      reply === 'TERMINATE' ||
+      this.hasReachedMaximumRounds(message.from, message.to)
+    ) {
       return
     }
 
     if (keepAlive) {
       // keep the chat alive by replying to the other node
-      await this.chat({to: from, from: to}, true)
+      await this.chat({to: message.from, from: message.to}, true)
     }
   }
 
+  /**
+   * Select the next node to chat with from a group.
+   * @param manager The manager node.
+   * @returns The name of the node to chat with.
+   */
+  private async selectNext(manager: string) {
+    const nodes = this.nodes[manager]
+    if (!nodes || !Array.isArray(nodes)) {
+      throw new Error(`Group ${manager} not found`)
+    }
+
+    if (nodes.length < 3) {
+      console.warn(
+        `- Group (${manager}) is underpopulated with ${nodes.length} agents. Direct communication would be more efficient.`,
+      )
+    }
+
+    // FIX: should we remove the last node of the group that chatted with the manager so that it doesn't chat with the same node again?
+    const availableNodes = nodes.filter(
+      node => !this.hasReachedMaximumRounds(manager, node),
+    )
+
+    if (!availableNodes.length) {
+      return
+    }
+
+    const systemMessage = {
+      role: 'system' as const,
+      content: `Read the above conversation. Then select the next role to play from: 
+${availableNodes.join('\n')} 
+
+Only return the role.`,
+    }
+
+    // get the provider that will be used for the manager
+    const provider = this.providerForNode(manager)
+    const history = this.getHistory({to: manager})
+
+    const messages = [
+      ...history.map(c => ({
+        content: c.content,
+        role: 'user' as const,
+      })),
+      systemMessage,
+    ]
+
+    const name = await provider.create(messages)
+
+    return name
+  }
+
+  /**
+   * Check if the chat has reached the maximum number of rounds.
+   */
   private hasReachedMaximumRounds(from: string, to: string): boolean {
     return this.getHistory({from, to}).length >= this.maxRounds
+  }
+
+  /**
+   * Get the provider to be used for a node.
+   *
+   * @param node
+   * @returns
+   */
+  private providerForNode(node: string) {
+    const nodeProvider = this.createProvider(this.config[node])
+    return nodeProvider || this.defaultProvider
   }
 
   /**
@@ -224,10 +332,7 @@ export class ChatFlow {
    */
   private async reply({from, to}: {from: string; to: string}) {
     // get the provider for the node that will reply
-    const nodeProvider = this.createProvider({
-      ...this.config[from],
-    })
-    const provider = nodeProvider || this.defaultProvider
+    const provider = this.providerForNode(from)
 
     // build the messages to send to the provider
     const messages: Message[] = [
@@ -261,33 +366,44 @@ export class ChatFlow {
     return content
   }
 
-  public continue(feedback?: string) {
+  public async continue(feedback?: string) {
     const lastChat = this._chats.at(-1)
     if (!lastChat) {
       throw new Error('No chat to continue')
     }
 
     const {from, to} = lastChat
-    if (!this.hasReachedMaximumRounds(from, to)) {
-      if (feedback) {
-        return this.start({
-          from: to,
-          to: from,
-          content: feedback,
-        })
-      }
 
-      return this.chat({from: to, to: from})
+    if (this.hasReachedMaximumRounds(from, to)) {
+      throw new Error('Maximum rounds reached')
     }
+
+    if (feedback) {
+      await this.start({
+        from: to,
+        to: from,
+        content: feedback,
+      })
+    } else {
+      await this.chat({from: to, to: from})
+    }
+
+    return this
   }
 
-  private getHistory({from, to}: {from: string; to: string}) {
+  private getHistory({from, to}: {from?: string; to: string}) {
     return this._chats.filter(chat => {
-      const isSuccess = chat.state == 'success'
+      const isSuccess = chat.state === 'success'
 
-      const hasSent = chat.from == from && chat.to == to
-      const hasReceived = chat.from == to && chat.to == from
+      // check if the chat is between the two nodes
+      const hasSent = chat.from === from && chat.to === to
+      const hasReceived = chat.from === to && chat.to === from
       const mutual = hasSent || hasReceived
+
+      // if from is not provided, return all chats to the node
+      if (!from) {
+        return isSuccess && chat.to === to
+      }
 
       return isSuccess && mutual
     })
