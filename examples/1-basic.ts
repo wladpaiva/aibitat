@@ -1,5 +1,5 @@
 import {ChatFlow} from '../src'
-import {printOnTerminal} from './utils'
+import {printOnTerminal, terminate} from './utils'
 
 console.log('🚀 starting chat\n')
 console.time('🚀 chat finished')
@@ -19,14 +19,7 @@ const flow = new ChatFlow({
 })
 
 flow.on('message', printOnTerminal)
-
-flow.on('terminate', () => {
-  setTimeout(() => {
-    console.log()
-    console.timeEnd('🚀 chat finished')
-    process.stdin.pause()
-  }, 100)
-})
+flow.on('terminate', terminate)
 
 await flow.start({
   from: '🧑',

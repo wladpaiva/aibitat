@@ -1,10 +1,10 @@
 import chalk from 'chalk'
 
-export const printOnTerminal = async (
+export async function printOnTerminal(
   message: {from: string; to: string; content: string} & {
     state: 'loading' | 'error' | 'success'
   },
-): Promise<void> => {
+) {
   const replying = chalk.dim(`(to ${message.to})`)
   process.stdout.write(`${chalk.bold(message.from)} ${replying}: `)
 
@@ -33,4 +33,12 @@ export const printOnTerminal = async (
   }
 
   process.stdout.write('\n')
+}
+
+export function terminate() {
+  setTimeout(() => {
+    console.log()
+    console.timeEnd('🚀 chat finished')
+    process.stdin.pause()
+  }, 100)
 }

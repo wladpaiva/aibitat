@@ -1,5 +1,7 @@
+import inquirer from 'inquirer'
+
 import {ChatFlow} from '../src'
-import {printOnTerminal} from './utils'
+import {printOnTerminal, terminate} from './utils'
 
 console.log('🚀 starting chat\n')
 console.time('🚀 chat finished')
@@ -12,8 +14,6 @@ const flow = new ChatFlow({
   config: {
     client: {
       type: 'assistant',
-      interrupt: 'NEVER',
-      role: 'You decide if the group needs to stop. If reviewer confirm the results, reply "TERMINATE" in the end. Otherwise reply "INTERRUPT".',
     },
     manager: {type: 'manager'},
     mathematician: {
@@ -28,13 +28,22 @@ const flow = new ChatFlow({
 })
 
 flow.on('message', printOnTerminal)
+flow.on('terminate', terminate)
 
-flow.on('terminate', () => {
-  setTimeout(() => {
-    console.log()
-    console.timeEnd('🚀 chat finished')
-    process.stdin.pause()
-  }, 100)
+flow.on('interrupt', async node => {
+  const answers = await inquirer.prompt([
+    {
+      type: 'input',
+      name: 'feedback',
+      message: `Provide feedback as ${node}. Press enter to skip and use auto-reply, or type 'exit' to end the conversation: `,
+    },
+  ])
+
+  if (answers.feedback === 'exit') {
+    return process.exit(0)
+  }
+
+  await flow.continue(answers.feedback)
 })
 
 await flow.start({
@@ -44,3 +53,14 @@ await flow.start({
 })
 
 process.stdin.resume()
+
+async function readFromConsole() {
+  for await (const feedback of console) {
+    console.log(`You typed: ${feedback}`)
+    if (feedback === 'exit') {
+      process.exit(0)
+    }
+
+    return Promise.resolve(feedback)
+  }
+}

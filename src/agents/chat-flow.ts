@@ -1,4 +1,6 @@
 import {EventEmitter} from 'events'
+import chalk from 'chalk'
+import debug from 'debug'
 
 import {
   AIProvider,
@@ -6,6 +8,8 @@ import {
   type OpenAIModel,
 } from '../providers/index.ts'
 import {Message} from '../types.ts'
+
+const log = debug('autogen:chat-flow')
 
 export type ProviderConfig =
   | {
@@ -181,6 +185,11 @@ export class ChatFlow {
   }
 
   async start(message: Chat) {
+    log(
+      `starting a chat from ${chalk.yellow(message.from)} to ${chalk.yellow(
+        message.to,
+      )} with ${chalk.green(message.content)}`,
+    )
     const x = {
       ...message,
       state: 'success' as const,
@@ -207,6 +216,12 @@ export class ChatFlow {
    * @param keepAlive Whether to keep the chat alive.
    */
   private async chat(message: {from: string; to: string}, keepAlive = true) {
+    log(
+      `executing a chat from ${chalk.yellow(message.from)} to ${chalk.green(
+        message.to,
+      )}`,
+    )
+
     // check if the message is for a group
     // if it is, select the next node to chat with from the group
     // and then ask them to reply.
@@ -238,23 +253,20 @@ export class ChatFlow {
         group.includes(chat.from),
       ).length
 
-      if (rounds < maxRounds) {
-        await this.chat({from: nextNode, to: message.from})
+      if (this.shouldNodeInterrupt(nextNode) || rounds >= maxRounds) {
+        this.emitter.emit('interrupt', nextNode)
+        return
       }
+
+      await this.chat({from: nextNode, to: message.from})
       return
     }
 
     // If it's a direct message, reply to the message
     const reply = await this.reply(message)
 
-    const interrupt =
-      this.config[message.to].interrupt ||
-      (this.defaultInterrupt || this.config[message.to].type === 'assistant'
-        ? 'ALWAYS'
-        : 'NEVER')
-
-    if (interrupt === 'ALWAYS') {
-      this.emitter.emit('interrupt', {...message, content: reply})
+    if (reply === 'INTERRUPT' || this.shouldNodeInterrupt(message.to)) {
+      this.emitter.emit('interrupt', message.from)
       return
     }
 
@@ -262,7 +274,7 @@ export class ChatFlow {
       reply === 'TERMINATE' ||
       this.hasReachedMaximumRounds(message.from, message.to)
     ) {
-      this.emitter.emit('terminate', {...message, content: reply})
+      this.emitter.emit('terminate', message.to)
       return
     }
 
@@ -270,6 +282,21 @@ export class ChatFlow {
       // keep the chat alive by replying to the other node
       await this.chat({to: message.from, from: message.to}, true)
     }
+  }
+
+  /**
+   *
+   * @param node
+   * @returns
+   */
+  private shouldNodeInterrupt(node: string) {
+    const config =
+      this.config[node].interrupt ||
+      (this.defaultInterrupt || this.config[node].type === 'assistant'
+        ? 'ALWAYS'
+        : 'NEVER')
+
+    return config === 'ALWAYS'
   }
 
   /**
@@ -385,7 +412,7 @@ Only return the role.
     return content
   }
 
-  public async continue(feedback?: string) {
+  public async continue(feedback?: string | null) {
     const lastChat = this._chats.at(-1)
     if (!lastChat) {
       throw new Error('No chat to continue')
@@ -398,9 +425,11 @@ Only return the role.
     }
 
     if (feedback) {
+      // FIX: this should be the last chat's that was interrupted
+      // @ts-expect-error
       await this.start({
-        from: to,
-        to: from,
+        // from,
+        to,
         content: feedback,
       })
     } else {
@@ -428,8 +457,8 @@ Only return the role.
     })
   }
 
-  public on(event: 'terminate', listener: (chat: ChatState) => void): this
-  public on(event: 'interrupt', listener: (chat: ChatState) => void): this
+  public on(event: 'terminate', listener: (node: string) => void): this
+  public on(event: 'interrupt', listener: (node: string) => void): this
   public on(event: 'message', listener: (chat: ChatState) => void): this
 
   /**
