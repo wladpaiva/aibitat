@@ -284,7 +284,7 @@ describe('as a group', () => {
       ...groupFlow,
       config: {
         ...groupFlow.config,
-        '🤖': {type: 'manager', maxRounds: 4},
+        '🤖': {type: 'manager', provider, maxRounds: 4},
       },
     })
     await flow.start(defaultStart)
