@@ -298,28 +298,38 @@ export class ChatFlow {
       return
     }
 
-    const systemMessage = {
-      role: 'system' as const,
-      content: `Read the above conversation. Then select the next role to play from: 
-${availableNodes.join('\n')} 
-
-Only return the role.`,
-    }
-
     // get the provider that will be used for the manager
-    const provider = this.providerForNode(manager)
+    // if the manager has a provider, use that otherwise
+    // use the GPT-4 because it has a better reasoning
+    const nodeProvider = this.createProvider(this.config[manager])
+    const provider =
+      nodeProvider || this.createProvider({provider: 'openai', model: 'gpt-4'})!
+
     const history = this.getHistory({to: manager})
 
     const messages = [
-      ...history.map(c => ({
-        content: c.content,
+      {
+        role: 'system' as const,
+        content: this.getRoleContent(manager),
+      },
+      {
         role: 'user' as const,
-      })),
-      systemMessage,
+        content: `You are in a role play game. The following roles are available:
+${availableNodes.map(node => `${node}: ${this.config[node].role}`).join('\n')}.
+
+Read the following conversation.
+
+CHAT HISTORY
+${history.map(c => `- ${c.from}: ${c.content}`).join('\n')}
+
+Then select the next role from that is going to speak next. 
+Only return the role.
+`,
+      },
     ]
 
     const name = await provider.create(messages)
-
+    // FIX: add error handling, it may return not a valid name
     return name
   }
 
@@ -331,17 +341,6 @@ Only return the role.`,
   }
 
   /**
-   * Get the provider to be used for a node.
-   *
-   * @param node
-   * @returns
-   */
-  private providerForNode(node: string) {
-    const nodeProvider = this.createProvider(this.config[node])
-    return nodeProvider || this.defaultProvider
-  }
-
-  /**
    * Ask the for the AI provider to generate a reply to the chat.
    *
    * @param chat.to The node that sent the chat.
@@ -349,20 +348,8 @@ Only return the role.`,
    */
   private async reply({from, to}: {from: string; to: string}) {
     // get the provider for the node that will reply
-    const provider = this.providerForNode(from)
-
-    // build the messages to send to the provider
-    const messages: Message[] = [
-      {
-        content: this.getRoleContent(from),
-        role: 'system' as const,
-      },
-      // get the history of chats between the two nodes
-      ...this.getHistory({from, to}).map(c => ({
-        content: c.content,
-        role: c.from == to ? ('user' as const) : ('assistant' as const),
-      })),
-    ]
+    const nodeProvider = this.createProvider(this.config[from])
+    const provider = nodeProvider || this.defaultProvider
 
     const newChat: ChatState = {
       from,
@@ -371,6 +358,21 @@ Only return the role.`,
       state: 'loading',
     }
     this._chats.push(newChat)
+
+    const isManager = this.config[to].type === 'manager'
+
+    // build the messages to send to the provider
+    const messages: Message[] = [
+      {
+        content: this.getRoleContent(from),
+        role: 'system' as const,
+      },
+      // get the history of chats between the two nodes
+      ...this.getHistory(isManager ? {to} : {from, to}).map(c => ({
+        content: c.content,
+        role: c.from == to ? ('user' as const) : ('assistant' as const),
+      })),
+    ]
 
     // get the chat completion
     const content = await provider.create(messages)
@@ -474,15 +476,13 @@ Only return the role.`,
       return n.role
     }
 
-    // default role
-    let role = ''
     switch (n.type) {
       case 'assistant':
-        role = 'You are a helpful AI Assistant'
+        return 'You are a helpful AI Assistant'
       case 'manager':
-        role = 'Group chat manager.'
+        return 'Group chat manager.'
       default:
-        role = `You are a helpful AI assistant.
+        return `You are a helpful AI assistant.
 Solve tasks using your coding and language skills.
 In the following cases, suggest python code (in a python coding block) or shell script (in a sh coding block) for the user to execute.
     1. When you need to collect info, use the code to output the info you need, for example, browse or search the web, download/read a file, print the content of a webpage or a file, get the current date/time, check the operating system. After sufficient info is printed and the task is ready to be solved based on your language skill, you can solve the task by yourself.
@@ -494,7 +494,5 @@ If the result indicates there is an error, fix the error and output the code aga
 When you find an answer, verify the answer carefully. Include verifiable evidence in your response if possible.
 Reply "TERMINATE" in the end when everything is done.`
     }
-
-    return role
   }
 }

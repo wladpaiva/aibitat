@@ -248,7 +248,7 @@ describe('as a group', () => {
     },
     config: {
       '🧑': {type: 'assistant'},
-      '🤖': {type: 'manager'},
+      '🤖': {type: 'manager', provider},
       '🐶': {type: 'agent'},
       '😸': {type: 'agent'},
       '🐭': {type: 'agent'},
