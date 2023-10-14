@@ -2,7 +2,7 @@ import {beforeEach, expect, mock, test} from 'bun:test'
 import OpenAI from 'openai'
 
 import {AIProvider} from '../providers/ai-provider.ts'
-import {ChatFlow, type ChatFlowProps} from './ChatFlow.ts'
+import {ChatFlow, type ChatFlowProps} from './chat-flow.ts'
 
 // HACK: Mock the AI provider.
 // This is still needed because Bun doesn't support mocking modules yet.
