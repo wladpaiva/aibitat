@@ -152,13 +152,25 @@ export class ChatFlow {
   private config: Config
 
   constructor(props: ChatFlowProps) {
-    const {nodes, config, chats = [], interrupt, maxRounds = 100} = props
+    const {
+      nodes,
+      config,
+      chats = [],
+      interrupt,
+      maxRounds = 100,
+      provider = 'openai',
+      ...rest
+    } = props
     this._chats = chats
     this.nodes = nodes
     this.config = config
     this.defaultInterrupt = interrupt
-    this.defaultProvider = this.createProvider(props)!
     this.maxRounds = maxRounds
+
+    this.defaultProvider = this.createProvider({
+      provider,
+      ...rest,
+    })!
   }
 
   /**
@@ -176,7 +188,10 @@ export class ChatFlow {
 
     // chats have no state
     this._chats.push(x)
-    // TODO: this.emitter.emit('chat', x)
+    this.emitter.emit('message', {
+      ...x,
+      state: 'success',
+    })
     await this.chat({
       to: message.from,
       from: message.to,
@@ -206,6 +221,7 @@ export class ChatFlow {
         // TODO: should it throw an error or keep the chat alive when there is no node to chat with in the group?
         // maybe it should wrap up the chat and reply to the original node
         // For now, it will terminate the chat
+        this.emitter.emit('terminate', {...message, content: 'TERMINATE'})
         return
       }
 
@@ -246,6 +262,7 @@ export class ChatFlow {
       reply === 'TERMINATE' ||
       this.hasReachedMaximumRounds(message.from, message.to)
     ) {
+      this.emitter.emit('terminate', {...message, content: reply})
       return
     }
 
@@ -361,7 +378,7 @@ Only return the role.`,
 
     newChat.content = content
     newChat.state = 'success'
-    this.emitter.emit('reply', newChat)
+    this.emitter.emit('message', newChat)
 
     return content
   }
@@ -409,8 +426,9 @@ Only return the role.`,
     })
   }
 
+  public on(event: 'terminate', listener: (chat: ChatState) => void): this
   public on(event: 'interrupt', listener: (chat: ChatState) => void): this
-  public on(event: 'reply', listener: (chat: ChatState) => void): this
+  public on(event: 'message', listener: (chat: ChatState) => void): this
 
   /**
    *

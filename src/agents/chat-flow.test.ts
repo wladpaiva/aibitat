@@ -137,7 +137,7 @@ describe('direct message', () => {
     const flow = new ChatFlow(defaultFlow)
 
     const callback = mock(() => {})
-    flow.on('reply', callback)
+    flow.on('message', callback)
 
     await flow.start(defaultStart)
 
