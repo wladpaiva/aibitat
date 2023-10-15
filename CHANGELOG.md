@@ -1,5 +1,17 @@
 # chatflow
 
+## 0.0.1-beta.2
+
+### Patch Changes
+
+- fix module exports
+
+## 0.0.1-beta.1
+
+### Patch Changes
+
+- add dist files in the exported module
+
 ## 0.0.1-beta.0
 
 ### Patch Changes

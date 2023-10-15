@@ -1,7 +1,11 @@
 {
   "name": "@wladiston/chatflow",
-  "version": "0.0.1-beta.0",
+  "version": "0.0.1-beta.2",
   "description": "A chat flow organizer for AI agents",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/wladiston/chatflow.git"
+  },
   "author": {
     "name": "Wlad Paiva",
     "email": "desenvolvedormg@gmail.com"
@@ -10,14 +14,14 @@
   "types": "src/index.ts",
   "exports": {
     ".": {
-      "import": "./src/index.js",
+      "import": "./dist/index.js",
       "types": "./src/index.ts"
-    },
-    "./utils": {
-      "import": "./src/utils/index.ts",
-      "types": "./src/utils/index.ts"
     }
   },
+  "files": [
+    "dist",
+    "src"
+  ],
   "type": "module",
   "scripts": {
     "build": "bun build ./src/index.ts --outdir=./dist",
