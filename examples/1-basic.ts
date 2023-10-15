@@ -1,5 +1,5 @@
 import {ChatFlow} from '../src'
-import {printOnTerminal, terminate} from './utils'
+import {terminal} from '../src/utils'
 
 console.log('🚀 starting chat\n')
 console.time('🚀 chat finished')
@@ -18,8 +18,8 @@ const flow = new ChatFlow({
   },
 })
 
-flow.on('message', printOnTerminal)
-flow.on('terminate', terminate)
+flow.on('message', terminal.print)
+flow.on('terminate', terminal.terminate)
 
 await flow.start({
   from: '🧑',
@@ -27,4 +27,4 @@ await flow.start({
   content: '2 + 2 = 4?',
 })
 
-process.stdin.resume()
+terminal.keepOpen()

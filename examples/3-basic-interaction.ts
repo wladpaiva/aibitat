@@ -1,8 +1,5 @@
-import chalk from 'chalk'
-import inquirer from 'inquirer'
-
 import {ChatFlow} from '../src'
-import {askForFeedback, printOnTerminal, terminate} from './utils'
+import {terminal} from '../src/utils'
 
 console.log('🚀 starting chat\n')
 console.time('🚀 chat finished')
@@ -28,11 +25,11 @@ const flow = new ChatFlow({
   },
 })
 
-flow.on('message', printOnTerminal)
-flow.on('terminate', terminate)
+flow.on('message', terminal.print)
+flow.on('terminate', terminal.terminate)
 
 flow.on('interrupt', async node => {
-  const feedback = await askForFeedback(node)
+  const feedback = await terminal.askForFeedback(node)
   await flow.continue(feedback)
 })
 
@@ -42,4 +39,4 @@ await flow.start({
   content: '2 + 2 = ?',
 })
 
-process.stdin.resume()
+terminal.keepOpen()

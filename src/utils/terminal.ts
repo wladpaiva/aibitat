@@ -1,7 +1,17 @@
 import chalk from 'chalk'
 import inquirer from 'inquirer'
 
-export async function printOnTerminal(
+/**
+ * Keep the terminal open by listening to stdin
+ */
+export function keepOpen() {
+  process.stdin.resume()
+}
+
+/**
+ * Print a message on the terminal
+ */
+export async function print(
   message: {from: string; to: string; content?: string} & {
     state: 'loading' | 'error' | 'success' | 'interrupt'
   },
@@ -44,6 +54,9 @@ export async function printOnTerminal(
   // process.stdout.write('\n')
 }
 
+/**
+ * Terminate the chat by printing a new line and ending the process
+ */
 export function terminate() {
   setTimeout(() => {
     console.log()
@@ -52,6 +65,12 @@ export function terminate() {
   }, 100)
 }
 
+/**
+ * Ask for feedback to the user using the terminal
+ *
+ * @param node
+ * @returns
+ */
 export async function askForFeedback(node: {from: string; to: string}) {
   const {feedback} = await inquirer.prompt<{feedback: string | null}>([
     {

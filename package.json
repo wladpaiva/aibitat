@@ -1,8 +1,26 @@
 {
-  "name": "autogen",
-  "module": "src/index.ts",
+  "name": "chatflow",
+  "version": "0.0.0",
+  "description": "A chat flow organizer for AI agents",
+  "author": {
+    "name": "Wlad Paiva",
+    "email": "desenvolvedormg@gmail.com"
+  },
+  "module": "dist/index.js",
+  "types": "src/index.ts",
+  "exports": {
+    ".": {
+      "import": "./src/index.js",
+      "types": "./src/index.ts"
+    },
+    "./utils": {
+      "import": "./src/utils/index.ts",
+      "types": "./src/utils/index.ts"
+    }
+  },
   "type": "module",
   "scripts": {
+    "build": "bun build ./src/index.ts --outdir=./dist",
     "format": "prettier --write .",
     "prepare": "husky install",
     "typecheck": "tsc --noEmit"
