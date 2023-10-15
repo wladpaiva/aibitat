@@ -5,7 +5,7 @@ import OpenAI, {ClientOptions} from 'openai'
 import {Message} from '../types.ts'
 import {AIProvider} from './ai-provider.ts'
 
-const log = debug('autogen:provider')
+const log = debug('autogen:provider:openai')
 
 /**
  * The model to use for the OpenAI API.
@@ -76,7 +76,7 @@ export class OpenAIProvider extends AIProvider<OpenAI> {
    * @returns The completion.
    */
   async create(messages: Message[]) {
-    log('calling `openai.chat.completions.create`')
+    log(`calling 'openai.chat.completions.create' with model '${this.model}'`)
 
     const response = await this.client.chat.completions.create({
       model: this.model,
@@ -84,7 +84,7 @@ export class OpenAIProvider extends AIProvider<OpenAI> {
       messages: messages!,
     })
 
-    log('cost: $', this.getCost(response.usage))
+    log('cost: ', this.getCost(response.usage))
 
     return response.choices[0].message.content!
 

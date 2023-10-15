@@ -228,6 +228,10 @@ export class ChatFlow {
     // if it is, select the next node to chat with from the group
     // and then ask them to reply.
     const fromNode = this.config[message.from]
+    if (!fromNode) {
+      throw new Error(`Node configuration "${message.from}" not found`)
+    }
+
     const isManager = fromNode.type === 'manager'
 
     if (isManager) {
@@ -255,12 +259,17 @@ export class ChatFlow {
         group.includes(chat.from),
       ).length
 
+      if (rounds >= maxRounds) {
+        this.emitter.emit('terminate', message.to)
+        return
+      }
+
       const nextChat = {
         from: nextNode,
         to: message.from,
       }
 
-      if (this.shouldNodeInterrupt(nextNode) || rounds >= maxRounds) {
+      if (this.shouldNodeInterrupt(nextNode)) {
         this._chats.push({
           ...nextChat,
           state: 'interrupt',
@@ -327,11 +336,11 @@ export class ChatFlow {
       throw new Error(`Group ${manager} not found`)
     }
 
-    if (nodes.length < 3) {
-      console.warn(
-        `- Group (${manager}) is underpopulated with ${nodes.length} agents. Direct communication would be more efficient.`,
-      )
-    }
+    // if (nodes.length < 3) {
+    //   console.warn(
+    //     `- Group (${manager}) is underpopulated with ${nodes.length} agents. Direct communication would be more efficient.`,
+    //   )
+    // }
 
     // FIX: should we remove the last node of the group that chatted with the manager so that it doesn't chat with the same node again?
     const availableNodes = nodes.filter(

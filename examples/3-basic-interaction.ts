@@ -2,7 +2,7 @@ import chalk from 'chalk'
 import inquirer from 'inquirer'
 
 import {ChatFlow} from '../src'
-import {printOnTerminal, terminate} from './utils'
+import {askForFeedback, printOnTerminal, terminate} from './utils'
 
 console.log('🚀 starting chat\n')
 console.time('🚀 chat finished')
@@ -32,21 +32,8 @@ flow.on('message', printOnTerminal)
 flow.on('terminate', terminate)
 
 flow.on('interrupt', async node => {
-  const answers = await inquirer.prompt([
-    {
-      type: 'input',
-      name: 'feedback',
-      message: `Provide feedback to ${chalk.yellow(node.to)} as ${chalk.yellow(
-        node.from,
-      )}. Press enter to skip and use auto-reply, or type 'exit' to end the conversation: `,
-    },
-  ])
-
-  if (answers.feedback === 'exit') {
-    return process.exit(0)
-  }
-
-  await flow.continue(answers.feedback)
+  const feedback = await askForFeedback(node)
+  await flow.continue(feedback)
 })
 
 await flow.start({

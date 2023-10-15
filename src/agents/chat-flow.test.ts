@@ -271,7 +271,7 @@ describe('as a group', () => {
     const flow = new ChatFlow(groupFlow)
     await flow.start(defaultStart)
 
-    expect(flow.chats).toHaveLength(12)
+    expect(flow.chats).toHaveLength(11)
   })
 
   test.todo('should infer the next speaker', async () => {})
@@ -286,7 +286,7 @@ describe('as a group', () => {
     })
     await flow.start(defaultStart)
 
-    expect(flow.chats).toHaveLength(6)
+    expect(flow.chats).toHaveLength(5)
   })
 })
 
