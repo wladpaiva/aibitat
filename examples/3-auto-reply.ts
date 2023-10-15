@@ -56,14 +56,3 @@ await flow.start({
 })
 
 process.stdin.resume()
-
-async function readFromConsole() {
-  for await (const feedback of console) {
-    console.log(`You typed: ${feedback}`)
-    if (feedback === 'exit') {
-      process.exit(0)
-    }
-
-    return Promise.resolve(feedback)
-  }
-}
