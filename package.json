@@ -1,17 +1,43 @@
 {
-  "name": "autogen",
-  "module": "src/index.ts",
+  "name": "@wladiston/chatflow",
+  "version": "0.0.1-beta.2",
+  "description": "A chat flow organizer for AI agents",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/wladiston/chatflow.git"
+  },
+  "author": {
+    "name": "Wlad Paiva",
+    "email": "desenvolvedormg@gmail.com"
+  },
+  "module": "dist/index.js",
+  "types": "src/index.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./src/index.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
   "type": "module",
   "scripts": {
+    "build": "bun build ./src/index.ts --outdir=./dist",
     "format": "prettier --write .",
     "prepare": "husky install",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
+    "@changesets/cli": "^2.26.2",
     "@ianvs/prettier-plugin-sort-imports": "^4.1.0",
     "@types/debug": "^4.1.9",
+    "@types/inquirer": "^9.0.4",
     "bun-types": "latest",
+    "chalk": "^5.3.0",
     "husky": "^8.0.0",
+    "inquirer": "^9.2.11",
     "nano-staged": "^0.8.0",
     "prettier": "^3.0.3",
     "typescript": "^5.2.2"

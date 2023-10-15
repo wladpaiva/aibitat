@@ -5,12 +5,13 @@ import OpenAI, {ClientOptions} from 'openai'
 import {Message} from '../types.ts'
 import {AIProvider} from './ai-provider.ts'
 
-const log = debug('autogen:provider')
+const log = debug('autogen:provider:openai')
 
 /**
  * The model to use for the OpenAI API.
  */
-type Model = OpenAI.Chat.Completions.ChatCompletionCreateParams['model']
+export type OpenAIModel =
+  OpenAI.Chat.Completions.ChatCompletionCreateParams['model']
 
 /**
  * The configuration for the OpenAI provider.
@@ -25,7 +26,7 @@ export type OpenAIProviderConfig = {
    * The model to use for the OpenAI API.
    * @default 'gpt-3.5-turbo'
    */
-  model?: Model
+  model?: OpenAIModel
 }
 
 /**
@@ -33,7 +34,7 @@ export type OpenAIProviderConfig = {
  * By default, the model is set to 'gpt-3.5-turbo'.
  */
 export class OpenAIProvider extends AIProvider<OpenAI> {
-  private model: Model
+  private model: OpenAIModel
   static COST_PER_TOKEN = {
     'gpt-4': {
       input: 0.03,
@@ -75,7 +76,7 @@ export class OpenAIProvider extends AIProvider<OpenAI> {
    * @returns The completion.
    */
   async create(messages: Message[]) {
-    log('calling `openai.chat.completions.create`')
+    log(`calling 'openai.chat.completions.create' with model '${this.model}'`)
 
     const response = await this.client.chat.completions.create({
       model: this.model,
@@ -83,7 +84,7 @@ export class OpenAIProvider extends AIProvider<OpenAI> {
       messages: messages!,
     })
 
-    log('cost: $', this.getCost(response.usage))
+    log('cost: ', this.getCost(response.usage))
 
     return response.choices[0].message.content!
 
