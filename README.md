@@ -1,7 +1,13 @@
-# ChatFlow
-
 This project is a fork from the original
 [autogen](https://github.com/microsoft/autogen) but done in TypeScript.
+
+# ChatFlow - Multi-Agent Conversation framework
+
+ChatFlow enables the next-gen LLM applications with a generic multi-agent
+conversation framework. It offers customizable and conversable agents that
+integrate LLMs, tools, and humans. By automating chat among multiple capable
+agents, one can easily make them collectively perform tasks autonomously or with
+human feedback, including tasks that require using tools via code.
 
 I took a sightly different approach to the original project. Agents are now
 provider agnostic and can be used with any provider that implements the
@@ -11,6 +17,17 @@ environment.
 By default, it uses **OpenAI** and **GPT-3.5-TURBO** as the provider but you can
 change it by passing `provider` and `model` to the `ChatFlow` constructor or by
 setting them on the node config.
+
+### Features
+
+- **Multi-agent conversations:** ChatFlow agents can communicate with each other
+  to solve tasks. This allows for more complex and sophisticated applications
+  than would be possible with a single LLM.
+- **Customization:** ChatFlow agents can be customized to meet the specific
+  needs of an application. This includes the ability to choose the LLMs to use,
+  the types of human input to allow, and the tools to employ.
+- **Human participation:** ChatFlow seamlessly allows human participation. This
+  means that humans can provide input and feedback to the agents as needed.
 
 ## Roadmap
 
