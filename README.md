@@ -41,14 +41,14 @@ setting them on the node config.
 You can install the package:
 
 ```bash
-npm install chatflow
+npm install @wladiston/chatflow
 ```
 
 add you `OPEN_AI_API_KEY` to your environment variables and then use it like
 this:
 
 ```ts
-import {ChatFlow} from 'chatflow'
+import {ChatFlow} from '@wladiston/chatflow'
 
 const flow = new ChatFlow({
   nodes: {

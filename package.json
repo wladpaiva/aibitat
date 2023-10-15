@@ -1,5 +1,5 @@
 {
-  "name": "chatflow",
+  "name": "@wladiston/chatflow",
   "version": "0.0.1-beta.0",
   "description": "A chat flow organizer for AI agents",
   "author": {
