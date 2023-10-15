@@ -46,7 +46,6 @@ flow.on('interrupt', async node => {
     return process.exit(0)
   }
 
-  console.log('🔥 ~ ', answers.feedback)
   await flow.continue(answers.feedback)
 })
 
