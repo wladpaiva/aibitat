@@ -1,15 +1,15 @@
 import chalk from 'chalk'
 
 export async function printOnTerminal(
-  message: {from: string; to: string; content: string} & {
-    state: 'loading' | 'error' | 'success'
+  message: {from: string; to: string; content?: string} & {
+    state: 'loading' | 'error' | 'success' | 'interrupt'
   },
 ) {
   const replying = chalk.dim(`(to ${message.to})`)
   process.stdout.write(`${chalk.bold(message.from)} ${replying}: `)
 
   // Emulate streaming by breaking the cached response into chunks
-  const chunks = message.content.split(' ')
+  const chunks = message.content?.split(' ') || []
   const stream = new ReadableStream({
     async start(controller) {
       for (const chunk of chunks) {

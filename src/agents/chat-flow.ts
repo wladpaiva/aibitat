@@ -103,8 +103,9 @@ type Chat = {
 /**
  * A chat message that is saved in the history.
  */
-type ChatState = Chat & {
-  state: 'loading' | 'error' | 'success'
+type ChatState = Omit<Chat, 'content'> & {
+  content?: string
+  state: 'success' | 'loading' | 'error' | 'interrupt'
 }
 
 /**
@@ -190,6 +191,7 @@ export class ChatFlow {
         message.to,
       )} with ${chalk.green(message.content)}`,
     )
+
     const x = {
       ...message,
       state: 'success' as const,
@@ -253,22 +255,26 @@ export class ChatFlow {
         group.includes(chat.from),
       ).length
 
+      const nextChat = {
+        from: nextNode,
+        to: message.from,
+      }
+
       if (this.shouldNodeInterrupt(nextNode) || rounds >= maxRounds) {
-        this.emitter.emit('interrupt', nextNode)
+        this._chats.push({
+          ...nextChat,
+          state: 'interrupt',
+        })
+        this.emitter.emit('interrupt', nextChat)
         return
       }
 
-      await this.chat({from: nextNode, to: message.from})
+      await this.chat(nextChat)
       return
     }
 
     // If it's a direct message, reply to the message
     const reply = await this.reply(message)
-
-    if (reply === 'INTERRUPT' || this.shouldNodeInterrupt(message.to)) {
-      this.emitter.emit('interrupt', message.from)
-      return
-    }
 
     if (
       reply === 'TERMINATE' ||
@@ -278,9 +284,20 @@ export class ChatFlow {
       return
     }
 
+    const newChat = {to: message.from, from: message.to}
+
+    if (reply === 'INTERRUPT' || this.shouldNodeInterrupt(message.to)) {
+      this._chats.push({
+        ...newChat,
+        state: 'interrupt',
+      })
+      this.emitter.emit('interrupt', newChat)
+      return
+    }
+
     if (keepAlive) {
       // keep the chat alive by replying to the other node
-      await this.chat({to: message.from, from: message.to}, true)
+      await this.chat(newChat, true)
     }
   }
 
@@ -381,7 +398,6 @@ Only return the role.
     const newChat: ChatState = {
       from,
       to,
-      content: '',
       state: 'loading',
     }
     this._chats.push(newChat)
@@ -405,8 +421,8 @@ Only return the role.
     const content = await provider.create(messages)
     // TODO: add error handling
 
-    newChat.content = content
     newChat.state = 'success'
+    newChat.content = content
     this.emitter.emit('message', newChat)
 
     return content
@@ -414,9 +430,12 @@ Only return the role.
 
   public async continue(feedback?: string | null) {
     const lastChat = this._chats.at(-1)
-    if (!lastChat) {
+    if (!lastChat || lastChat.state !== 'interrupt') {
       throw new Error('No chat to continue')
     }
+
+    // remove the last chat's that was interrupted
+    this._chats.pop()
 
     const {from, to} = lastChat
 
@@ -425,15 +444,13 @@ Only return the role.
     }
 
     if (feedback) {
-      // FIX: this should be the last chat's that was interrupted
-      // @ts-expect-error
       await this.start({
-        // from,
+        from,
         to,
         content: feedback,
       })
     } else {
-      await this.chat({from: to, to: from})
+      await this.chat({from, to})
     }
 
     return this
@@ -454,11 +471,19 @@ Only return the role.
       }
 
       return isSuccess && mutual
-    })
+    }) as {
+      from: string
+      to: string
+      content: string
+      state: 'success'
+    }[]
   }
 
   public on(event: 'terminate', listener: (node: string) => void): this
-  public on(event: 'interrupt', listener: (node: string) => void): this
+  public on(
+    event: 'interrupt',
+    listener: (chat: {from: string; to: string}) => void,
+  ): this
   public on(event: 'message', listener: (chat: ChatState) => void): this
 
   /**

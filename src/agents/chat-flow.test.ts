@@ -176,7 +176,7 @@ describe('direct message', () => {
 
     await flow.start(defaultStart)
 
-    expect(flow.chats).toHaveLength(2)
+    expect(flow.chats).toHaveLength(3)
   })
 
   test('should auto-reply only when user skip engaging', async () => {
@@ -189,8 +189,7 @@ describe('direct message', () => {
     // https://github.com/oven-sh/bun/issues/1825
     const p = new Promise(async resolve => {
       flow.on('interrupt', async () => {
-        // console.log('🔥 ~ interrupted')
-        if (flow.chats.length < 100) {
+        if (flow.chats.length < 4) {
           await flow.continue()
         } else {
           resolve(true)
@@ -201,7 +200,9 @@ describe('direct message', () => {
     })
 
     expect(p).resolves.toBeTrue()
-    expect(flow.chats).toHaveLength(100)
+    expect(flow.chats[3].content).toBe('...')
+    expect(flow.chats[3].state).toBe('success')
+    expect(flow.chats).toHaveLength(5)
   })
 
   test('should continue conversation with user`s feedback', async () => {
@@ -218,7 +219,7 @@ describe('direct message', () => {
     // https://github.com/oven-sh/bun/issues/1825
     const p = new Promise(async resolve => {
       flow.on('interrupt', a => {
-        if (flow.chats.length < 10) {
+        if (flow.chats.length < 4) {
           flow.continue('my feedback')
         } else {
           resolve(true)
@@ -274,7 +275,7 @@ describe('as a group', () => {
     const flow = new ChatFlow(groupFlow)
     await flow.start(defaultStart)
 
-    expect(flow.chats).toHaveLength(11)
+    expect(flow.chats).toHaveLength(12)
   })
 
   test.todo('should infer the next speaker', async () => {})
@@ -289,6 +290,6 @@ describe('as a group', () => {
     })
     await flow.start(defaultStart)
 
-    expect(flow.chats).toHaveLength(5)
+    expect(flow.chats).toHaveLength(6)
   })
 })

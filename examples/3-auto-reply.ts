@@ -1,3 +1,4 @@
+import chalk from 'chalk'
 import inquirer from 'inquirer'
 
 import {ChatFlow} from '../src'
@@ -35,7 +36,9 @@ flow.on('interrupt', async node => {
     {
       type: 'input',
       name: 'feedback',
-      message: `Provide feedback as ${node}. Press enter to skip and use auto-reply, or type 'exit' to end the conversation: `,
+      message: `Provide feedback to ${chalk.yellow(node.to)} as ${chalk.yellow(
+        node.from,
+      )}. Press enter to skip and use auto-reply, or type 'exit' to end the conversation: `,
     },
   ])
 
@@ -43,6 +46,7 @@ flow.on('interrupt', async node => {
     return process.exit(0)
   }
 
+  console.log('🔥 ~ ', answers.feedback)
   await flow.continue(answers.feedback)
 })
 
