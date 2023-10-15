@@ -1,0 +1,8 @@
+{
+  "mode": "pre",
+  "tag": "beta",
+  "initialVersions": {
+    "chatflow": "0.0.0"
+  },
+  "changesets": []
+}
