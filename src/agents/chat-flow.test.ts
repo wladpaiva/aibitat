@@ -234,10 +234,6 @@ describe('direct message', () => {
     expect(flow.chats[2].to).toBe('🤖')
     expect(flow.chats[2].content).toBe('my feedback')
   })
-
-  test.todo('should call a function', async () => {})
-
-  test.todo('should execute code', async () => {})
 })
 
 describe('as a group', () => {
@@ -293,3 +289,17 @@ describe('as a group', () => {
     expect(flow.chats).toHaveLength(6)
   })
 })
+
+test.todo('should call a function', async () => {
+  const myFunc = mock((props: {x: number; y: number}) => {})
+
+  const flow = new ChatFlow({
+    ...defaultFlow,
+  })
+  await flow.start(defaultStart)
+
+  expect(myFunc).toHaveBeenCalledTimes(1)
+  expect(myFunc.mock.calls[0][0]).toEqual({x: 1, y: 2})
+})
+
+test.todo('should execute code', async () => {})
