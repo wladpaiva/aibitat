@@ -17,8 +17,8 @@ setting them on the node config.
 - [x] **Automated reply with loop prevention.** Chats are kept alive until the
       assistant interrupts the conversation.
 - [x] **Group chats.** Agents chat with multiple other agents at the same time
-      as if they were in a Whatsapp group. The next agent to reply is chosen
-      based on the conversation and predicted most likely to reply.
+      as if they were in a Whatsapp group. The next agent to reply is the most
+      likely to reply based on the conversation.
 - [ ] **Function execution.** Agents can execute functions and return the result
       to the conversation.
 - [ ] **Cache**. Store conversation history in a cache to improve performance
