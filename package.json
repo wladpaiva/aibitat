@@ -26,6 +26,7 @@
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
+    "@changesets/cli": "^2.26.2",
     "@ianvs/prettier-plugin-sort-imports": "^4.1.0",
     "@types/debug": "^4.1.9",
     "@types/inquirer": "^9.0.4",
