@@ -6,8 +6,8 @@ import {
   AIProvider,
   OpenAIProvider,
   type OpenAIModel,
-} from '../providers/index.ts'
-import {Message} from '../types.ts'
+} from './providers/index.ts'
+import {Message} from './types.ts'
 
 const log = debug('autogen:chat-aibitat')
 
