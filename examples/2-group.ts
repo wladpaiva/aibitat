@@ -5,6 +5,7 @@ console.log('🚀 starting chat\n')
 console.time('🚀 chat finished')
 
 const aibitat = new AIbitat({
+  model: 'gpt-4',
   nodes: {
     client: 'manager',
     manager: ['mathematician', 'reviewer', 'client'],
@@ -12,7 +13,6 @@ const aibitat = new AIbitat({
   config: {
     client: {
       type: 'assistant',
-      interrupt: 'NEVER',
       role: 'You decide if the group needs to stop. If reviewer confirm the results, reply "TERMINATE" in the end. Otherwise reply "INTERRUPT".',
     },
     manager: {type: 'manager'},
@@ -28,12 +28,10 @@ const aibitat = new AIbitat({
 })
 
 aibitat.on('message', terminal.print)
-aibitat.on('terminate', terminal.terminate)
+aibitat.on('terminate', () => console.timeEnd('🚀 chat finished'))
 
 await aibitat.start({
   from: 'client',
   to: 'manager',
   content: '2 + 2 = ?',
 })
-
-terminal.keepOpen()

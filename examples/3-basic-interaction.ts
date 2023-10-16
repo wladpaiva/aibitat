@@ -26,7 +26,7 @@ const aibitat = new AIbitat({
 })
 
 aibitat.on('message', terminal.print)
-aibitat.on('terminate', terminal.terminate)
+aibitat.on('terminate', () => console.timeEnd('🚀 chat finished'))
 
 aibitat.on('interrupt', async node => {
   const feedback = await terminal.askForFeedback(node)
@@ -38,5 +38,3 @@ await aibitat.start({
   to: 'manager',
   content: '2 + 2 = ?',
 })
-
-terminal.keepOpen()

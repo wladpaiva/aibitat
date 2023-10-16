@@ -33,11 +33,9 @@
     "@changesets/cli": "^2.26.2",
     "@ianvs/prettier-plugin-sort-imports": "^4.1.0",
     "@types/debug": "^4.1.9",
-    "@types/inquirer": "^9.0.4",
     "bun-types": "latest",
     "chalk": "^5.3.0",
     "husky": "^8.0.0",
-    "inquirer": "^9.2.11",
     "nano-staged": "^0.8.0",
     "prettier": "^3.0.3",
     "typescript": "^5.2.2"
@@ -46,6 +44,7 @@
     "typescript": "^5.0.0"
   },
   "dependencies": {
+    "@inquirer/prompts": "^3.2.0",
     "ai": "^2.2.14",
     "debug": "^4.3.4",
     "openai": "^4.11.1"
