@@ -67,7 +67,7 @@ this:
 ```ts
 import {AIbitat} from 'aibitat'
 
-const habitat = new AIbitat({
+const aibitat = new AIbitat({
   nodes: {
     '🧑': '🤖',
     '🤖': ['🐭', '🦁', '🐶'],
@@ -88,7 +88,7 @@ const habitat = new AIbitat({
   },
 })
 
-habitat.on('message', ({from, to, content}) =>
+aibitat.on('message', ({from, to, content}) =>
   console.log(`${from}: ${content}`),
 )
 // 🧑: How much is 2 + 2?
@@ -96,13 +96,13 @@ habitat.on('message', ({from, to, content}) =>
 // 🦁: That is correct.
 // 🐶: TERMINATE
 
-await habitat.start({
+await aibitat.start({
   from: '🧑',
   to: '🤖',
   content: 'How much is 2 + 2?',
 })
 
-console.log('saving chats... ', habitat.chats)
+console.log('saving chats... ', aibitat.chats)
 // saving chats...  [
 //   {
 //     from: "🧑",
@@ -148,7 +148,7 @@ to each other. The `config` object is used to configure each node.
 You can listen to events using the `on` method:
 
 ```ts
-habitat.on('message', ({from, to, content}) =>
+aibitat.on('message', ({from, to, content}) =>
   console.log(`${from}: ${content}`),
 )
 ```

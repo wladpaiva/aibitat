@@ -9,7 +9,7 @@ import {
 } from '../providers/index.ts'
 import {Message} from '../types.ts'
 
-const log = debug('autogen:chat-habitat')
+const log = debug('autogen:chat-aibitat')
 
 export type ProviderConfig =
   | {
@@ -140,10 +140,10 @@ export type AIbitatProps = ProviderConfig & {
 }
 
 /**
- * AIbitat is a class that manages the habitat of a chat.
+ * AIbitat is a class that manages the aibitat of a chat.
  * It is designed to solve a task with LLM.
  *
- * Guiding the chat through a habitat of nodes.
+ * Guiding the chat through a aibitat of nodes.
  */
 export class AIbitat {
   private emitter = new EventEmitter()
