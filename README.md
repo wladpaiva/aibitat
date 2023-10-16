@@ -58,16 +58,16 @@ setting them on the node config.
 You can install the package:
 
 ```bash
-npm install @wladiston/chatflow
+npm install aibitat
 ```
 
 add you `OPEN_AI_API_KEY` to your environment variables and then use it like
 this:
 
 ```ts
-import {AIbitat} from '@wladiston/chatflow'
+import {AIbitat} from 'aibitat'
 
-const flow = new AIbitat({
+const habitat = new AIbitat({
   nodes: {
     '🧑': '🤖',
     '🤖': ['🐭', '🦁', '🐶'],
@@ -88,19 +88,21 @@ const flow = new AIbitat({
   },
 })
 
-flow.on('message', ({from, to, content}) => console.log(`${from}: ${content}`))
+habitat.on('message', ({from, to, content}) =>
+  console.log(`${from}: ${content}`),
+)
 // 🧑: How much is 2 + 2?
 // 🐭: The sum of 2 + 2 is 4.
 // 🦁: That is correct.
 // 🐶: TERMINATE
 
-await flow.start({
+await habitat.start({
   from: '🧑',
   to: '🤖',
   content: 'How much is 2 + 2?',
 })
 
-console.log('saving chats... ', flow.chats)
+console.log('saving chats... ', habitat.chats)
 // saving chats...  [
 //   {
 //     from: "🧑",
@@ -146,7 +148,9 @@ to each other. The `config` object is used to configure each node.
 You can listen to events using the `on` method:
 
 ```ts
-flow.on('message', ({from, to, content}) => console.log(`${from}: ${content}`))
+habitat.on('message', ({from, to, content}) =>
+  console.log(`${from}: ${content}`),
+)
 ```
 
 The following events are available:

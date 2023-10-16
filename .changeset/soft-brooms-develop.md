@@ -1,5 +1,5 @@
 ---
-'@wladiston/chatflow': patch
+'aibitat': patch
 ---
 
 fix module exports

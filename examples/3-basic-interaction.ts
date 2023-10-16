@@ -4,7 +4,7 @@ import {terminal} from '../src/utils'
 console.log('🚀 starting chat\n')
 console.time('🚀 chat finished')
 
-const flow = new AIbitat({
+const habitat = new AIbitat({
   nodes: {
     client: 'manager',
     manager: ['mathematician', 'reviewer', 'client'],
@@ -25,15 +25,15 @@ const flow = new AIbitat({
   },
 })
 
-flow.on('message', terminal.print)
-flow.on('terminate', terminal.terminate)
+habitat.on('message', terminal.print)
+habitat.on('terminate', terminal.terminate)
 
-flow.on('interrupt', async node => {
+habitat.on('interrupt', async node => {
   const feedback = await terminal.askForFeedback(node)
-  await flow.continue(feedback)
+  await habitat.continue(feedback)
 })
 
-await flow.start({
+await habitat.start({
   from: 'client',
   to: 'manager',
   content: '2 + 2 = ?',

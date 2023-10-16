@@ -18,7 +18,7 @@ beforeEach(() => {
   ai.create.mockImplementation(() => Promise.resolve('TERMINATE'))
 })
 
-const defaultFlow: AIbitatProps = {
+const defaulthabitat: AIbitatProps = {
   provider,
   nodes: {
     '🧑': '🤖',
@@ -37,12 +37,12 @@ const defaultStart = {
 
 describe('direct message', () => {
   test('should reply a chat', async () => {
-    const flow = new AIbitat(defaultFlow)
-    await flow.start(defaultStart)
+    const habitat = new AIbitat(defaulthabitat)
+    await habitat.start(defaultStart)
 
-    expect(flow.chats).toHaveLength(2)
+    expect(habitat.chats).toHaveLength(2)
     // expect human has the TERMINATE from the bot
-    expect(flow.chats.at(-1)).toEqual({
+    expect(habitat.chats.at(-1)).toEqual({
       from: '🤖',
       to: '🧑',
       content: 'TERMINATE',
@@ -53,15 +53,15 @@ describe('direct message', () => {
   test('should have a system message', async () => {
     const role = 'You are a 🤖.'
 
-    const flow = new AIbitat({
-      ...defaultFlow,
+    const habitat = new AIbitat({
+      ...defaulthabitat,
       config: {
-        ...defaultFlow.config,
+        ...defaulthabitat.config,
         '🤖': {type: 'agent', role},
       },
     })
 
-    await flow.start(defaultStart)
+    await habitat.start(defaultStart)
 
     expect(ai.create).toHaveBeenCalledTimes(1)
     expect(ai.create.mock.calls[0][0][0].content).toEqual(role)
@@ -73,40 +73,40 @@ describe('direct message', () => {
       Promise.resolve(i >= 10 ? 'TERMINATE' : `... ${i++}`),
     )
 
-    const flow = new AIbitat({
-      ...defaultFlow,
+    const habitat = new AIbitat({
+      ...defaulthabitat,
       config: {
-        ...defaultFlow.config,
+        ...defaulthabitat.config,
         '🧑': {type: 'assistant', interrupt: 'NEVER'},
       },
     })
 
-    await flow.start(defaultStart)
+    await habitat.start(defaultStart)
 
     // the chat gets in a loop if the bot doesn't terminate
-    expect(flow.chats).toHaveLength(12)
+    expect(habitat.chats).toHaveLength(12)
   })
 
   test('should not engage in infinity conversations', async () => {
     ai.create.mockImplementation(() => Promise.resolve('...'))
 
-    const flow = new AIbitat({
-      ...defaultFlow,
+    const habitat = new AIbitat({
+      ...defaulthabitat,
       maxRounds: 4,
       config: {
-        ...defaultFlow.config,
+        ...defaulthabitat.config,
         '🧑': {type: 'assistant', interrupt: 'NEVER'},
       },
     })
 
-    await flow.start(defaultStart)
+    await habitat.start(defaultStart)
 
     expect(ai.create).toHaveBeenCalledTimes(3)
   })
 
   test('should have initial messages', async () => {
-    const flow = new AIbitat({
-      ...defaultFlow,
+    const habitat = new AIbitat({
+      ...defaulthabitat,
       maxRounds: 1,
       chats: [
         {
@@ -118,14 +118,14 @@ describe('direct message', () => {
       ],
     })
 
-    await flow.start({
+    await habitat.start({
       from: '🤖',
       to: '🧑',
       content: '4',
     })
 
-    expect(flow.chats).toHaveLength(3)
-    expect(flow.chats.at(0)).toEqual({
+    expect(habitat.chats).toHaveLength(3)
+    expect(habitat.chats.at(0)).toEqual({
       from: '🧑',
       to: '🤖',
       content: '2 + 2 = 4?',
@@ -134,12 +134,12 @@ describe('direct message', () => {
   })
 
   test('should trigger an event when a reply is received', async () => {
-    const flow = new AIbitat(defaultFlow)
+    const habitat = new AIbitat(defaulthabitat)
 
     const callback = mock(() => {})
-    flow.on('message', callback)
+    habitat.on('message', callback)
 
-    await flow.start(defaultStart)
+    await habitat.start(defaultStart)
 
     expect(callback).toHaveBeenCalledTimes(2)
   })
@@ -147,15 +147,15 @@ describe('direct message', () => {
   test('should always interrupt interaction after each reply', async () => {
     ai.create.mockImplementation(() => Promise.resolve('...'))
 
-    const flow = new AIbitat({
-      ...defaultFlow,
+    const habitat = new AIbitat({
+      ...defaulthabitat,
       interrupt: 'ALWAYS',
     })
 
     const callback = mock(() => {})
-    flow.on('interrupt', callback)
+    habitat.on('interrupt', callback)
 
-    await flow.start(defaultStart)
+    await habitat.start(defaultStart)
 
     expect(callback).toHaveBeenCalledTimes(1)
   })
@@ -163,53 +163,53 @@ describe('direct message', () => {
   test('should trigger an event when a interaction is needed', async () => {
     ai.create.mockImplementation(() => Promise.resolve('...'))
 
-    const flow = new AIbitat({
-      ...defaultFlow,
+    const habitat = new AIbitat({
+      ...defaulthabitat,
       config: {
-        ...defaultFlow.config,
+        ...defaulthabitat.config,
         '🤖': {type: 'agent', interrupt: 'ALWAYS'},
       },
     })
 
     const callback = mock(() => {})
-    flow.on('interrupt', callback)
+    habitat.on('interrupt', callback)
 
-    await flow.start(defaultStart)
+    await habitat.start(defaultStart)
 
-    expect(flow.chats).toHaveLength(3)
+    expect(habitat.chats).toHaveLength(3)
   })
 
   test('should auto-reply only when user skip engaging', async () => {
     ai.create.mockImplementation(() => Promise.resolve('...'))
 
-    const flow = new AIbitat(defaultFlow)
+    const habitat = new AIbitat(defaulthabitat)
     // HACK: we should use `expect.assertions(1)` here but
     // bun has not implemented it yet.
     // so I have to work around it.
     // https://github.com/oven-sh/bun/issues/1825
     const p = new Promise(async resolve => {
-      flow.on('interrupt', async () => {
-        if (flow.chats.length < 4) {
-          await flow.continue()
+      habitat.on('interrupt', async () => {
+        if (habitat.chats.length < 4) {
+          await habitat.continue()
         } else {
           resolve(true)
         }
       })
 
-      await flow.start(defaultStart)
+      await habitat.start(defaultStart)
     })
 
     expect(p).resolves.toBeTrue()
-    expect(flow.chats[3].content).toBe('...')
-    expect(flow.chats[3].state).toBe('success')
-    expect(flow.chats).toHaveLength(5)
+    expect(habitat.chats[3].content).toBe('...')
+    expect(habitat.chats[3].state).toBe('success')
+    expect(habitat.chats).toHaveLength(5)
   })
 
   test('should continue conversation with user`s feedback', async () => {
     ai.create.mockImplementation(() => Promise.resolve('...'))
 
-    const flow = new AIbitat({
-      ...defaultFlow,
+    const habitat = new AIbitat({
+      ...defaulthabitat,
       maxRounds: 10,
     })
 
@@ -218,27 +218,27 @@ describe('direct message', () => {
     // so I have to work around it.
     // https://github.com/oven-sh/bun/issues/1825
     const p = new Promise(async resolve => {
-      flow.on('interrupt', a => {
-        if (flow.chats.length < 4) {
-          flow.continue('my feedback')
+      habitat.on('interrupt', a => {
+        if (habitat.chats.length < 4) {
+          habitat.continue('my feedback')
         } else {
           resolve(true)
         }
       })
 
-      await flow.start(defaultStart)
+      await habitat.start(defaultStart)
     })
 
     expect(p).resolves.toBeTrue()
-    expect(flow.chats[2].from).toBe('🧑')
-    expect(flow.chats[2].to).toBe('🤖')
-    expect(flow.chats[2].content).toBe('my feedback')
+    expect(habitat.chats[2].from).toBe('🧑')
+    expect(habitat.chats[2].to).toBe('🤖')
+    expect(habitat.chats[2].content).toBe('my feedback')
   })
 })
 
 describe('as a group', () => {
-  const groupFlow: AIbitatProps = {
-    ...defaultFlow,
+  const grouphabitat: AIbitatProps = {
+    ...defaulthabitat,
     nodes: {
       '🧑': '🤖',
       '🤖': ['🐶', '😸', '🐭'],
@@ -257,8 +257,8 @@ describe('as a group', () => {
       const roleMessage = x.find(y => y.content?.includes('next role'))
 
       if (roleMessage) {
-        // pick a random node from groupFlow.nodes
-        const nodes = groupFlow.nodes['🤖']
+        // pick a random node from grouphabitat.nodes
+        const nodes = grouphabitat.nodes['🤖']
         const nextRole = nodes[Math.floor(Math.random() * nodes.length)]
         return Promise.resolve(nextRole)
       }
@@ -268,35 +268,35 @@ describe('as a group', () => {
   })
 
   test('should chat to members of the group', async () => {
-    const flow = new AIbitat(groupFlow)
-    await flow.start(defaultStart)
+    const habitat = new AIbitat(grouphabitat)
+    await habitat.start(defaultStart)
 
-    expect(flow.chats).toHaveLength(11)
+    expect(habitat.chats).toHaveLength(11)
   })
 
   test.todo('should infer the next speaker', async () => {})
 
   test('should chat only a specific amount of rounds', async () => {
-    const flow = new AIbitat({
-      ...groupFlow,
+    const habitat = new AIbitat({
+      ...grouphabitat,
       config: {
-        ...groupFlow.config,
+        ...grouphabitat.config,
         '🤖': {type: 'manager', provider, maxRounds: 4},
       },
     })
-    await flow.start(defaultStart)
+    await habitat.start(defaultStart)
 
-    expect(flow.chats).toHaveLength(5)
+    expect(habitat.chats).toHaveLength(5)
   })
 })
 
 test.todo('should call a function', async () => {
   const myFunc = mock((props: {x: number; y: number}) => {})
 
-  const flow = new AIbitat({
-    ...defaultFlow,
+  const habitat = new AIbitat({
+    ...defaulthabitat,
   })
-  await flow.start(defaultStart)
+  await habitat.start(defaultStart)
 
   expect(myFunc).toHaveBeenCalledTimes(1)
   expect(myFunc.mock.calls[0][0]).toEqual({x: 1, y: 2})

@@ -1,10 +1,10 @@
 {
-  "name": "@wladiston/chatflow",
+  "name": "aibitat",
   "version": "0.0.1-beta.2",
-  "description": "A chat flow organizer for AI agents",
+  "description": "An extensible, stateless and customizable framework for multi-agents conversation",
   "repository": {
     "type": "git",
-    "url": "https://github.com/wladiston/chatflow.git"
+    "url": "https://github.com/wladiston/abitat.git"
   },
   "author": {
     "name": "Wlad Paiva",

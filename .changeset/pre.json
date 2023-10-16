@@ -2,8 +2,7 @@
   "mode": "pre",
   "tag": "beta",
   "initialVersions": {
-    "chatflow": "0.0.0",
-    "@wladiston/chatflow": "0.0.1-beta.0"
+    "aibitat": "0.0.0"
   },
   "changesets": [
     "afraid-gifts-move",
