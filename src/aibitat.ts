@@ -6,10 +6,10 @@ import {
   AIProvider,
   OpenAIProvider,
   type OpenAIModel,
-} from '../providers/index.ts'
-import {Message} from '../types.ts'
+} from './providers/index.ts'
+import {Message} from './types.ts'
 
-const log = debug('autogen:chat-flow')
+const log = debug('autogen:chat-aibitat')
 
 export type ProviderConfig =
   | {
@@ -24,7 +24,7 @@ export type ProviderConfig =
     }
 
 /**
- * Base config for ChatFlow nodes.
+ * Base config for AIbitat nodes.
  */
 export type BaseNodeConfig = ProviderConfig & {
   /** The role this node will play in the conversation */
@@ -68,12 +68,12 @@ export type Assistant = BaseNodeConfig & {
 }
 
 /**
- * A Node config for ChatFlow.
+ * A Node config for AIbitat.
  */
 export type NodeConfig = Agent | Manager | Assistant
 
 /**
- * Configuration for all Nodes in ChatFlow.
+ * Configuration for all Nodes in AIbitat.
  */
 export type Config = {
   // TODO: Add types for this
@@ -114,9 +114,9 @@ type ChatState = Omit<Chat, 'content'> & {
 type History = Array<ChatState>
 
 /**
- * ChatFlow props.
+ * AIbitat props.
  */
-export type ChatFlowProps = ProviderConfig & {
+export type AIbitatProps = ProviderConfig & {
   nodes: Nodes
   config: Config
 
@@ -140,23 +140,23 @@ export type ChatFlowProps = ProviderConfig & {
 }
 
 /**
- * ChatFlow is a class that manages the flow of a chat.
+ * AIbitat is a class that manages the aibitat of a chat.
  * It is designed to solve a task with LLM.
  *
- * Guiding the chat through a flow of nodes.
+ * Guiding the chat through a aibitat of nodes.
  */
-export class ChatFlow {
+export class AIbitat {
   private emitter = new EventEmitter()
 
   private defaultProvider: AIProvider<unknown>
-  private defaultInterrupt: ChatFlowProps['interrupt']
+  private defaultInterrupt: AIbitatProps['interrupt']
   private maxRounds: number
 
   private _chats: History
   private nodes: Nodes
   private config: Config
 
-  constructor(props: ChatFlowProps) {
+  constructor(props: AIbitatProps) {
     const {
       nodes,
       config,

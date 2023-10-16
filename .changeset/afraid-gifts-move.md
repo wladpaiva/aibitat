@@ -1,5 +1,5 @@
 ---
-'chatflow': patch
+'aibitat': patch
 ---
 
 - **Automated reply with loop prevention.** Chats are kept alive until the

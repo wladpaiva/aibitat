@@ -1,9 +1,9 @@
 This project is a fork from the original
 [autogen](https://github.com/microsoft/autogen) but done in TypeScript.
 
-# ChatFlow - Multi-Agent Conversation framework
+# AIbitat - Multi-Agent Conversation framework
 
-ChatFlow enables the next-gen LLM applications with a generic multi-agent
+AIbitat enables the next-gen LLM applications with a generic multi-agent
 conversation framework. It offers customizable and conversable agents that
 integrate LLMs, tools, and humans. By automating chat among multiple capable
 agents, one can easily make them collectively perform tasks autonomously or with
@@ -15,18 +15,18 @@ provider agnostic and can be used with any provider that implements the
 environment.
 
 By default, it uses **OpenAI** and **GPT-3.5-TURBO** as the provider but you can
-change it by passing `provider` and `model` to the `ChatFlow` constructor or by
+change it by passing `provider` and `model` to the `AIbitat` constructor or by
 setting them on the node config.
 
 ### Features
 
-- **Multi-agent conversations:** ChatFlow agents can communicate with each other
+- **Multi-agent conversations:** AIbitat agents can communicate with each other
   to solve tasks. This allows for more complex and sophisticated applications
   than would be possible with a single LLM.
-- **Customization:** ChatFlow agents can be customized to meet the specific
-  needs of an application. This includes the ability to choose the LLMs to use,
-  the types of human input to allow, and the tools to employ.
-- **Human participation:** ChatFlow seamlessly allows human participation. This
+- **Customization:** AIbitat agents can be customized to meet the specific needs
+  of an application. This includes the ability to choose the LLMs to use, the
+  types of human input to allow, and the tools to employ.
+- **Human participation:** AIbitat seamlessly allows human participation. This
   means that humans can provide input and feedback to the agents as needed.
 
 ## Roadmap
@@ -58,16 +58,16 @@ setting them on the node config.
 You can install the package:
 
 ```bash
-npm install @wladiston/chatflow
+npm install aibitat
 ```
 
 add you `OPEN_AI_API_KEY` to your environment variables and then use it like
 this:
 
 ```ts
-import {ChatFlow} from '@wladiston/chatflow'
+import {AIbitat} from 'aibitat'
 
-const flow = new ChatFlow({
+const aibitat = new AIbitat({
   nodes: {
     '🧑': '🤖',
     '🤖': ['🐭', '🦁', '🐶'],
@@ -88,19 +88,21 @@ const flow = new ChatFlow({
   },
 })
 
-flow.on('message', ({from, to, content}) => console.log(`${from}: ${content}`))
+aibitat.on('message', ({from, to, content}) =>
+  console.log(`${from}: ${content}`),
+)
 // 🧑: How much is 2 + 2?
 // 🐭: The sum of 2 + 2 is 4.
 // 🦁: That is correct.
 // 🐶: TERMINATE
 
-await flow.start({
+await aibitat.start({
   from: '🧑',
   to: '🤖',
   content: 'How much is 2 + 2?',
 })
 
-console.log('saving chats... ', flow.chats)
+console.log('saving chats... ', aibitat.chats)
 // saving chats...  [
 //   {
 //     from: "🧑",
@@ -146,7 +148,9 @@ to each other. The `config` object is used to configure each node.
 You can listen to events using the `on` method:
 
 ```ts
-flow.on('message', ({from, to, content}) => console.log(`${from}: ${content}`))
+aibitat.on('message', ({from, to, content}) =>
+  console.log(`${from}: ${content}`),
+)
 ```
 
 The following events are available:

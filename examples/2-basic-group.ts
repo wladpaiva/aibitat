@@ -1,10 +1,10 @@
-import {ChatFlow} from '../src'
+import {AIbitat} from '../src'
 import {terminal} from '../src/utils'
 
 console.log('🚀 starting chat\n')
 console.time('🚀 chat finished')
 
-const flow = new ChatFlow({
+const aibitat = new AIbitat({
   nodes: {
     client: 'manager',
     manager: ['mathematician', 'reviewer', 'client'],
@@ -27,10 +27,10 @@ const flow = new ChatFlow({
   },
 })
 
-flow.on('message', terminal.print)
-flow.on('terminate', terminal.terminate)
+aibitat.on('message', terminal.print)
+aibitat.on('terminate', terminal.terminate)
 
-await flow.start({
+await aibitat.start({
   from: 'client',
   to: 'manager',
   content: '2 + 2 = ?',
