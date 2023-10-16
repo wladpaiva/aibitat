@@ -3,7 +3,7 @@ import OpenAI from 'openai'
 
 import {AIProvider} from '../providers'
 import {type Message} from '../types.ts'
-import {ChatFlow, type ChatFlowProps} from './chat-flow.ts'
+import {AIbitat, type AIbitatProps} from './chat-flow.ts'
 
 // HACK: Mock the AI provider.
 // This is still needed because Bun doesn't support mocking modules yet.
@@ -18,7 +18,7 @@ beforeEach(() => {
   ai.create.mockImplementation(() => Promise.resolve('TERMINATE'))
 })
 
-const defaultFlow: ChatFlowProps = {
+const defaultFlow: AIbitatProps = {
   provider,
   nodes: {
     '🧑': '🤖',
@@ -37,7 +37,7 @@ const defaultStart = {
 
 describe('direct message', () => {
   test('should reply a chat', async () => {
-    const flow = new ChatFlow(defaultFlow)
+    const flow = new AIbitat(defaultFlow)
     await flow.start(defaultStart)
 
     expect(flow.chats).toHaveLength(2)
@@ -53,7 +53,7 @@ describe('direct message', () => {
   test('should have a system message', async () => {
     const role = 'You are a 🤖.'
 
-    const flow = new ChatFlow({
+    const flow = new AIbitat({
       ...defaultFlow,
       config: {
         ...defaultFlow.config,
@@ -73,7 +73,7 @@ describe('direct message', () => {
       Promise.resolve(i >= 10 ? 'TERMINATE' : `... ${i++}`),
     )
 
-    const flow = new ChatFlow({
+    const flow = new AIbitat({
       ...defaultFlow,
       config: {
         ...defaultFlow.config,
@@ -90,7 +90,7 @@ describe('direct message', () => {
   test('should not engage in infinity conversations', async () => {
     ai.create.mockImplementation(() => Promise.resolve('...'))
 
-    const flow = new ChatFlow({
+    const flow = new AIbitat({
       ...defaultFlow,
       maxRounds: 4,
       config: {
@@ -105,7 +105,7 @@ describe('direct message', () => {
   })
 
   test('should have initial messages', async () => {
-    const flow = new ChatFlow({
+    const flow = new AIbitat({
       ...defaultFlow,
       maxRounds: 1,
       chats: [
@@ -134,7 +134,7 @@ describe('direct message', () => {
   })
 
   test('should trigger an event when a reply is received', async () => {
-    const flow = new ChatFlow(defaultFlow)
+    const flow = new AIbitat(defaultFlow)
 
     const callback = mock(() => {})
     flow.on('message', callback)
@@ -147,7 +147,7 @@ describe('direct message', () => {
   test('should always interrupt interaction after each reply', async () => {
     ai.create.mockImplementation(() => Promise.resolve('...'))
 
-    const flow = new ChatFlow({
+    const flow = new AIbitat({
       ...defaultFlow,
       interrupt: 'ALWAYS',
     })
@@ -163,7 +163,7 @@ describe('direct message', () => {
   test('should trigger an event when a interaction is needed', async () => {
     ai.create.mockImplementation(() => Promise.resolve('...'))
 
-    const flow = new ChatFlow({
+    const flow = new AIbitat({
       ...defaultFlow,
       config: {
         ...defaultFlow.config,
@@ -182,7 +182,7 @@ describe('direct message', () => {
   test('should auto-reply only when user skip engaging', async () => {
     ai.create.mockImplementation(() => Promise.resolve('...'))
 
-    const flow = new ChatFlow(defaultFlow)
+    const flow = new AIbitat(defaultFlow)
     // HACK: we should use `expect.assertions(1)` here but
     // bun has not implemented it yet.
     // so I have to work around it.
@@ -208,7 +208,7 @@ describe('direct message', () => {
   test('should continue conversation with user`s feedback', async () => {
     ai.create.mockImplementation(() => Promise.resolve('...'))
 
-    const flow = new ChatFlow({
+    const flow = new AIbitat({
       ...defaultFlow,
       maxRounds: 10,
     })
@@ -237,7 +237,7 @@ describe('direct message', () => {
 })
 
 describe('as a group', () => {
-  const groupFlow: ChatFlowProps = {
+  const groupFlow: AIbitatProps = {
     ...defaultFlow,
     nodes: {
       '🧑': '🤖',
@@ -268,7 +268,7 @@ describe('as a group', () => {
   })
 
   test('should chat to members of the group', async () => {
-    const flow = new ChatFlow(groupFlow)
+    const flow = new AIbitat(groupFlow)
     await flow.start(defaultStart)
 
     expect(flow.chats).toHaveLength(11)
@@ -277,7 +277,7 @@ describe('as a group', () => {
   test.todo('should infer the next speaker', async () => {})
 
   test('should chat only a specific amount of rounds', async () => {
-    const flow = new ChatFlow({
+    const flow = new AIbitat({
       ...groupFlow,
       config: {
         ...groupFlow.config,
@@ -293,7 +293,7 @@ describe('as a group', () => {
 test.todo('should call a function', async () => {
   const myFunc = mock((props: {x: number; y: number}) => {})
 
-  const flow = new ChatFlow({
+  const flow = new AIbitat({
     ...defaultFlow,
   })
   await flow.start(defaultStart)

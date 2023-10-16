@@ -1,10 +1,10 @@
-import {ChatFlow} from '../src'
+import {AIbitat} from '../src'
 import {terminal} from '../src/utils'
 
 console.log('🚀 starting chat\n')
 console.time('🚀 chat finished')
 
-const flow = new ChatFlow({
+const flow = new AIbitat({
   nodes: {
     '🧑': '🤖',
   },
