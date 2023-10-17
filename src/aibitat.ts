@@ -172,7 +172,7 @@ export class AIbitat {
     this.defaultInterrupt = interrupt
     this.maxRounds = maxRounds
 
-    this.defaultProvider = this.createProvider({
+    this.defaultProvider = this.getProviderFromConfig({
       provider,
       ...rest,
     })!
@@ -311,9 +311,10 @@ export class AIbitat {
   }
 
   /**
+   * Check if the node should interrupt the chat based on its configuration.
    *
    * @param node
-   * @returns
+   * @returns {boolean} Whether the node should interrupt the chat.
    */
   private shouldNodeInterrupt(node: string) {
     const config =
@@ -331,21 +332,32 @@ export class AIbitat {
    * @returns The name of the node to chat with.
    */
   private async selectNext(manager: string) {
+    // get all members of the group
     const nodes = this.nodes[manager]
     if (!nodes || !Array.isArray(nodes)) {
       throw new Error(`Group ${manager} not found`)
     }
 
-    // if (nodes.length < 3) {
-    //   console.warn(
-    //     `- Group (${manager}) is underpopulated with ${nodes.length} agents. Direct communication would be more efficient.`,
-    //   )
-    // }
+    // warn if the group is underpopulated
+    if (nodes.length < 3) {
+      console.warn(
+        `- Group (${manager}) is underpopulated with ${nodes.length} agents. Direct communication would be more efficient.`,
+      )
+    }
 
-    // FIX: should we remove the last node of the group that chatted with the manager so that it doesn't chat with the same node again?
+    // get the nodes that have not reached the maximum number of rounds
     const availableNodes = nodes.filter(
       node => !this.hasReachedMaximumRounds(manager, node),
     )
+
+    // remove the last node that chatted with the manager so it doesn't chat again
+    const lastChat = this._chats.filter(c => c.to === manager).at(-1)
+    if (lastChat) {
+      const index = availableNodes.indexOf(lastChat.from)
+      if (index > -1) {
+        availableNodes.splice(index, 1)
+      }
+    }
 
     if (!availableNodes.length) {
       return
@@ -354,9 +366,10 @@ export class AIbitat {
     // get the provider that will be used for the manager
     // if the manager has a provider, use that otherwise
     // use the GPT-4 because it has a better reasoning
-    const nodeProvider = this.createProvider(this.config[manager])
+    const nodeProvider = this.getProviderFromConfig(this.config[manager])
     const provider =
-      nodeProvider || this.createProvider({provider: 'openai', model: 'gpt-4'})!
+      nodeProvider ||
+      this.getProviderFromConfig({provider: 'openai', model: 'gpt-4'})!
 
     const history = this.getHistory({to: manager})
 
@@ -368,12 +381,14 @@ export class AIbitat {
       {
         role: 'user' as const,
         content: `You are in a role play game. The following roles are available:
-${availableNodes.map(node => `${node}: ${this.config[node].role}`).join('\n')}.
+${availableNodes
+  .map(node => `[${node}]: ${this.config[node].role}`)
+  .join('\n')}.
 
 Read the following conversation.
 
 CHAT HISTORY
-${history.map(c => `- ${c.from}: ${c.content}`).join('\n')}
+${history.map(c => `[${c.from}]: ${c.content}`).join('\n')}
 
 Then select the next role from that is going to speak next. 
 Only return the role.
@@ -381,9 +396,13 @@ Only return the role.
       },
     ]
 
-    const name = await provider.create(messages)
-    // FIX: add error handling, it may return not a valid name
-    return name
+    const name = (await provider.create(messages)).replace(/^\[|\]$/g, '')
+    if (this.config[name]) {
+      return name
+    }
+
+    // if the name is not in the nodes, return a random node
+    return availableNodes[Math.floor(Math.random() * availableNodes.length)]
   }
 
   /**
@@ -401,7 +420,7 @@ Only return the role.
    */
   private async reply({from, to}: {from: string; to: string}) {
     // get the provider for the node that will reply
-    const nodeProvider = this.createProvider(this.config[from])
+    const nodeProvider = this.getProviderFromConfig(this.config[from])
     const provider = nodeProvider || this.defaultProvider
 
     const newChat: ChatState = {
@@ -413,6 +432,31 @@ Only return the role.
 
     const isManager = this.config[to].type === 'manager'
 
+    let chatHistory: Message[]
+
+    if (isManager) {
+      chatHistory = [
+        {
+          role: 'user',
+          content: `You are in a whatsapp group. Read the following conversation and then reply. 
+Do not add introduction or conclusion to your reply because this will be a continuous conversation. Don't introduce yourself.
+
+CHAT HISTORY
+${this.getHistory({to})
+  .map(c => `[${c.from}]: ${c.content}`)
+  .join('\n')}
+
+[${from}]:
+`,
+        },
+      ]
+    } else {
+      chatHistory = this.getHistory({from, to}).map(c => ({
+        content: c.content,
+        role: c.from == to ? ('user' as const) : ('assistant' as const),
+      }))
+    }
+
     // build the messages to send to the provider
     const messages: Message[] = [
       {
@@ -420,10 +464,7 @@ Only return the role.
         role: 'system' as const,
       },
       // get the history of chats between the two nodes
-      ...this.getHistory(isManager ? {to} : {from, to}).map(c => ({
-        content: c.content,
-        role: c.from == to ? ('user' as const) : ('assistant' as const),
-      })),
+      ...chatHistory,
     ]
 
     // get the chat completion
@@ -465,19 +506,27 @@ Only return the role.
     return this
   }
 
-  private getHistory({from, to}: {from?: string; to: string}) {
+  /**
+   * Get the chat history between two nodes or all chats to/from a node.
+   */
+  private getHistory({from, to}: {from?: string; to?: string}) {
     return this._chats.filter(chat => {
       const isSuccess = chat.state === 'success'
+
+      // return all chats to the node
+      if (!from) {
+        return isSuccess && chat.to === to
+      }
+
+      // get all chats from the node
+      if (!to) {
+        return isSuccess && chat.from === from
+      }
 
       // check if the chat is between the two nodes
       const hasSent = chat.from === from && chat.to === to
       const hasReceived = chat.from === to && chat.to === from
       const mutual = hasSent || hasReceived
-
-      // if from is not provided, return all chats to the node
-      if (!from) {
-        return isSuccess && chat.to === to
-      }
 
       return isSuccess && mutual
     }) as {
@@ -509,7 +558,7 @@ Only return the role.
   /**
    * Get provider based on configurations
    */
-  private createProvider(config: ProviderConfig) {
+  private getProviderFromConfig(config: ProviderConfig) {
     if (typeof config.provider === 'string') {
       switch (config.provider) {
         case 'openai':
@@ -555,7 +604,7 @@ When using code, you must indicate the script type in the code block. The user c
 If you want the user to save the code in a file before executing it, put # filename: <filename> inside the code block as the first line. Don't include multiple code blocks in one response. Do not ask users to copy and paste the result. Instead, use 'print' function for the output when relevant. Check the execution result returned by the user.
 If the result indicates there is an error, fix the error and output the code again. Suggest the full code instead of partial code or code changes. If the error can't be fixed or if the task is not solved even after the code is executed successfully, analyze the problem, revisit your assumption, collect additional info you need, and think of a different approach to try.
 When you find an answer, verify the answer carefully. Include verifiable evidence in your response if possible.
-Reply "TERMINATE" in the end when everything is done.`
+Reply "TERMINATE" when everything is done.`
     }
   }
 }

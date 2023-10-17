@@ -81,7 +81,7 @@ export class OpenAIProvider extends AIProvider<OpenAI> {
     const response = await this.client.chat.completions.create({
       model: this.model,
       // stream: true,
-      messages: messages!,
+      messages,
     })
 
     log('cost: ', this.getCost(response.usage))
