@@ -20,7 +20,8 @@ jobs:
         with:
           node-version: 16.x
 
-      - uses: oven-sh/setup-bun@v1
+      - name: Install Bun
+        uses: oven-sh/setup-bun@v1
 
       - name: Install Dependencies
         run: bun install
