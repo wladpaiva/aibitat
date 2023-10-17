@@ -27,7 +27,8 @@
     "build": "bun build ./src/index.ts --outdir=./dist",
     "format": "prettier --write .",
     "prepare": "husky install",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "release": "bun run build && changeset publish"
   },
   "devDependencies": {
     "@changesets/cli": "^2.26.2",
