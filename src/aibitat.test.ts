@@ -137,7 +137,7 @@ describe('direct message', () => {
     const aibitat = new AIbitat(defaultaibitat)
 
     const callback = mock(() => {})
-    aibitat.on('message', callback)
+    aibitat.onMessage(callback)
 
     await aibitat.start(defaultStart)
 
@@ -153,7 +153,7 @@ describe('direct message', () => {
     })
 
     const callback = mock(() => {})
-    aibitat.on('interrupt', callback)
+    aibitat.onInterrupt(callback)
 
     await aibitat.start(defaultStart)
 
@@ -172,7 +172,7 @@ describe('direct message', () => {
     })
 
     const callback = mock(() => {})
-    aibitat.on('interrupt', callback)
+    aibitat.onInterrupt(callback)
 
     await aibitat.start(defaultStart)
 
@@ -188,7 +188,7 @@ describe('direct message', () => {
     // so I have to work around it.
     // https://github.com/oven-sh/bun/issues/1825
     const p = new Promise(async resolve => {
-      aibitat.on('interrupt', async () => {
+      aibitat.onInterrupt(async () => {
         if (aibitat.chats.length < 4) {
           await aibitat.continue()
         } else {
@@ -218,7 +218,7 @@ describe('direct message', () => {
     // so I have to work around it.
     // https://github.com/oven-sh/bun/issues/1825
     const p = new Promise(async resolve => {
-      aibitat.on('interrupt', a => {
+      aibitat.onInterrupt(a => {
         if (aibitat.chats.length < 4) {
           aibitat.continue('my feedback')
         } else {

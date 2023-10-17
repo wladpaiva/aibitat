@@ -25,10 +25,10 @@ const aibitat = new AIbitat({
   },
 })
 
-aibitat.on('message', terminal.print)
-aibitat.on('terminate', () => console.timeEnd('🚀 chat finished'))
+aibitat.onMessage(terminal.print)
+aibitat.onTerminate(() => console.timeEnd('🚀 chat finished'))
 
-aibitat.on('interrupt', async node => {
+aibitat.onInterrupt(async node => {
   const feedback = await terminal.askForFeedback(node)
   await aibitat.continue(feedback)
 })

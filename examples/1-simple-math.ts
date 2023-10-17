@@ -21,8 +21,8 @@ const aibitat = new AIbitat({
   },
 })
 
-aibitat.on('message', terminal.print)
-aibitat.on('terminate', () => console.timeEnd('🚀 chat finished'))
+aibitat.onMessage(terminal.print)
+aibitat.onTerminate(() => console.timeEnd('🚀 chat finished'))
 
 // Ask for the mathematical problem of the chat before starting the conversation
 const math = await input({

@@ -55,6 +55,8 @@ setting them on the node config.
 
 ## Usage
 
+> For a more complete example, check out the [examples](./examples) folder.
+
 You can install the package:
 
 ```bash
@@ -88,9 +90,7 @@ const aibitat = new AIbitat({
   },
 })
 
-aibitat.on('message', ({from, to, content}) =>
-  console.log(`${from}: ${content}`),
-)
+aibitat.onMessage(({from, to, content}) => console.log(`${from}: ${content}`))
 // 🧑: How much is 2 + 2?
 // 🐭: The sum of 2 + 2 is 4.
 // 🦁: That is correct.
@@ -148,9 +148,7 @@ to each other. The `config` object is used to configure each node.
 You can listen to events using the `on` method:
 
 ```ts
-aibitat.on('message', ({from, to, content}) =>
-  console.log(`${from}: ${content}`),
-)
+aibitat.onMessage(({from, to, content}) => console.log(`${from}: ${content}`))
 ```
 
 The following events are available:
