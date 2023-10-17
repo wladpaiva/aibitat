@@ -1,10 +1,7 @@
 import {input} from '@inquirer/prompts'
 
 import {AIbitat} from '../src'
-import {terminal} from '../src/utils'
-
-console.log('🚀 starting chat\n')
-console.time('🚀 chat finished')
+import {terminal} from '../src/plugins'
 
 const aibitat = new AIbitat({
   model: 'gpt-3.5-turbo',
@@ -19,10 +16,7 @@ const aibitat = new AIbitat({
     },
     '🤖': {type: 'agent'},
   },
-})
-
-aibitat.onMessage(terminal.print)
-aibitat.onTerminate(() => console.timeEnd('🚀 chat finished'))
+}).use(terminal())
 
 // Ask for the mathematical problem of the chat before starting the conversation
 const math = await input({

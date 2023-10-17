@@ -151,6 +151,14 @@ export type AIbitatProps = ProviderConfig & {
 }
 
 /**
+ * Plugin to use with the aibitat
+ */
+export type AIbitatPlugin = {
+  name: string
+  setup: (aibitat: AIbitat) => void
+}
+
+/**
  * AIbitat is a class that manages the conversation between agents.
  * It is designed to solve a task with LLM.
  *
@@ -194,6 +202,14 @@ export class AIbitat {
    */
   get chats() {
     return this._chats
+  }
+
+  /**
+   * Install a plugin.
+   */
+  use(plugin: AIbitatPlugin) {
+    plugin.setup(this)
+    return this
   }
 
   /**
@@ -250,7 +266,7 @@ export class AIbitat {
    * @param listener
    * @returns
    */
-  public onTerminate(listener: (node: string) => void) {
+  public onTerminate(listener: (node: string, aibitat: AIbitat) => void) {
     this.emitter.on('terminate', listener)
     return this
   }
@@ -261,7 +277,7 @@ export class AIbitat {
    * @param node Last node to chat with
    */
   private terminate(node: string) {
-    this.emitter.emit('terminate', node)
+    this.emitter.emit('terminate', node, this)
   }
 
   /**
@@ -270,7 +286,9 @@ export class AIbitat {
    * @param listener
    * @returns
    */
-  public onInterrupt(listener: (chat: {from: string; to: string}) => void) {
+  public onInterrupt(
+    listener: (chat: {from: string; to: string}, aibitat: AIbitat) => void,
+  ) {
     this.emitter.on('interrupt', listener)
     return this
   }
@@ -286,7 +304,7 @@ export class AIbitat {
       ...chat,
       state: 'interrupt',
     })
-    this.emitter.emit('interrupt', chat)
+    this.emitter.emit('interrupt', chat, this)
   }
 
   /**
@@ -296,7 +314,7 @@ export class AIbitat {
    * @param listener
    * @returns
    */
-  public onMessage(listener: (chat: ChatState) => void) {
+  public onMessage(listener: (chat: ChatState, aibitat: AIbitat) => void) {
     this.emitter.on('message', listener)
     return this
   }
@@ -314,7 +332,7 @@ export class AIbitat {
     }
 
     this._chats.push(chat)
-    this.emitter.emit('message', chat)
+    this.emitter.emit('message', chat, this)
     return this
   }
 
@@ -324,7 +342,7 @@ export class AIbitat {
    * @param listener
    * @returns
    */
-  public onStart(listener: (chat: ChatState) => void) {
+  public onStart(listener: (chat: ChatState, aibitat: AIbitat) => void) {
     this.emitter.on('start', listener)
     return this
   }
@@ -334,7 +352,7 @@ export class AIbitat {
    *
    * @param message The message to start the chat.
    */
-  async start(message: Chat) {
+  public async start(message: Chat) {
     log(
       `starting a chat from ${chalk.yellow(message.from)} to ${chalk.yellow(
         message.to,
@@ -343,7 +361,7 @@ export class AIbitat {
 
     // register the message in the chat history
     this.newMessage(message)
-    this.emitter.emit('start', message)
+    this.emitter.emit('start', message, this)
 
     // ask the node to reply
     await this.chat({

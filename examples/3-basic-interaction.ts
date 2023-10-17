@@ -1,8 +1,5 @@
 import {AIbitat} from '../src'
-import {terminal} from '../src/utils'
-
-console.log('🚀 starting chat\n')
-console.time('🚀 chat finished')
+import {terminal} from '../src/plugins'
 
 const aibitat = new AIbitat({
   nodes: {
@@ -23,15 +20,7 @@ const aibitat = new AIbitat({
       role: `You are a peer-reviewer and you do not solve math problems. Check the result from mathematician and then confirm. Just confirm, no talk.`,
     },
   },
-})
-
-aibitat.onMessage(terminal.print)
-aibitat.onTerminate(() => console.timeEnd('🚀 chat finished'))
-
-aibitat.onInterrupt(async node => {
-  const feedback = await terminal.askForFeedback(node)
-  await aibitat.continue(feedback)
-})
+}).use(terminal())
 
 await aibitat.start({
   from: 'client',

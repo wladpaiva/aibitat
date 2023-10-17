@@ -1,10 +1,7 @@
 import {input} from '@inquirer/prompts'
 
 import {AIbitat} from '../src'
-import {terminal} from '../src/utils'
-
-console.log('🚀 starting chat\n')
-console.time('🚀 chat finished')
+import {terminal} from '../src/plugins'
 
 // Ask for the topic of the chat before starting the conversation
 const topic = await input({
@@ -59,14 +56,7 @@ const aibitat = new AIbitat({
       Provide an optimize post's meta description and title.`,
     },
   },
-})
-
-aibitat.onMessage(terminal.print)
-aibitat.onTerminate(() => console.timeEnd('🚀 chat finished'))
-aibitat.onInterrupt(async node => {
-  const feedback = await terminal.askForFeedback(node)
-  await aibitat.continue(feedback)
-})
+}).use(terminal())
 
 await aibitat.start({
   from: 'client',
