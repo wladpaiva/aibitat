@@ -15,7 +15,7 @@ const topic = await input({
 const aibitat = new AIbitat({
   model: 'gpt-4',
   nodes: {
-    'content-creators': [
+    '#content-creators': [
       'the-strategist',
       'the-researcher',
       'the-writer',
@@ -29,7 +29,7 @@ const aibitat = new AIbitat({
       role: `You are a human assistant. Your job is to answer relevant question about the work. 
       Reply "TERMINATE" when the-strategist and the-researcher stop suggesting changes.`,
     },
-    'content-creators': {
+    '#content-creators': {
       type: 'manager',
       role: 'You are a content team.',
     },
@@ -48,8 +48,8 @@ const aibitat = new AIbitat({
       type: 'agent',
       role: `You are the Writer. You follow the instructions given by the-researcher and the-strategist. 
       You are responsible for creating a well-written, engaging, and error-free the a compelling title and blog post to be posted on Medium. 
-      Writing the body of the blog post based on the outline provided.
-      Revisit and editing the draft for clarity, coherence, and correctness based on the feedback provided.
+      Writing the body of the blog post based on the outline provided. Write in first person.
+      Revisit and edit the draft for clarity, coherence, and correctness based on the feedback provided.
       Ask for feedbacks to te group when you are done.`,
     },
     'the-seo': {
@@ -70,6 +70,6 @@ aibitat.on('interrupt', async node => {
 
 await aibitat.start({
   from: 'client',
-  to: 'content-creators',
+  to: '#content-creators',
   content: `Write a blog post about "${topic}"`,
 })
