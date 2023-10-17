@@ -319,6 +319,17 @@ export class AIbitat {
   }
 
   /**
+   * Triggered when a chat is interrupted by a node.
+   *
+   * @param listener
+   * @returns
+   */
+  public onStart(listener: (chat: ChatState) => void) {
+    this.emitter.on('start', listener)
+    return this
+  }
+
+  /**
    * Start a new chat.
    *
    * @param message The message to start the chat.
@@ -332,6 +343,7 @@ export class AIbitat {
 
     // register the message in the chat history
     this.newMessage(message)
+    this.emitter.emit('start', message)
 
     // ask the node to reply
     await this.chat({
@@ -611,10 +623,19 @@ ${this.getHistory({to})
     }
 
     if (feedback) {
-      await this.start({
+      const message = {
         from,
         to,
         content: feedback,
+      }
+
+      // register the message in the chat history
+      this.newMessage(message)
+
+      // ask the node to reply
+      await this.chat({
+        to: message.from,
+        from: message.to,
       })
     } else {
       await this.chat({from, to})
