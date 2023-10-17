@@ -34,7 +34,7 @@ setting them on the node config.
 - [x] **Automated reply with loop prevention.** Chats are kept alive until the
       assistant interrupts the conversation.
 - [x] **Group chats.** Agents chat with multiple other agents at the same time
-      as if they were in a Whatsapp group. The next agent to reply is the most
+      as if they were in a slack channel. The next agent to reply is the most
       likely to reply based on the conversation.
 - [ ] **Function execution.** Agents can execute functions and return the result
       to the conversation.
@@ -153,12 +153,13 @@ aibitat.onMessage(({from, to, content}) => console.log(`${from}: ${content}`))
 
 The following events are available:
 
-- `message`: When a message is added to the chat.
-- `terminate`: When the conversation is terminated. Generally means there is
-  nothing else to do and a new conversation should be started.
-- `interrupt`: When the conversation is interrupted by an agent. Generally means
-  the agent has a question or needs help. The conversation can be resumed by
-  calling `.continue(feedback)`.
+- `start`: Called when the chat starts.
+- `message`: Called when a message is added to the chat history.
+- `terminate`: Called when the conversation is terminated. Generally means there
+  is nothing else to do and a new conversation should be started.
+- `interrupt`: Called when the conversation is interrupted by an agent.
+  Generally means the agent has a question or needs help. The conversation can
+  be resumed by calling `.continue(feedback)`.
 
 ## Contributing
 
