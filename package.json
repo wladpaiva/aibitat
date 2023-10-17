@@ -1,6 +1,6 @@
 {
   "name": "aibitat",
-  "version": "0.0.1-beta.3",
+  "version": "0.0.1-beta.4",
   "description": "An extensible, stateless and customizable framework for multi-agents conversation",
   "repository": {
     "type": "git",

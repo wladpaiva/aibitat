@@ -1,5 +1,15 @@
 # AIbitat
 
+## 0.0.1-beta.4
+
+### Patch Changes
+
+- f1c2aff: added plugin support
+- 98869b7: fix a where it was selecting the wrong the next participant in the
+  group
+- 937ac28: `.on` method is being replaced by especialized `.onXXX` methods
+- 41aea69: added `onStart` event
+
 ## 0.0.1-beta.3
 
 ### Patch Changes
