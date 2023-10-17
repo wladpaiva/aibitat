@@ -4,7 +4,7 @@
   "description": "An extensible, stateless and customizable framework for multi-agents conversation",
   "repository": {
     "type": "git",
-    "url": "https://github.com/wladiston/abitat.git"
+    "url": "https://github.com/wladiston/aibitat.git"
   },
   "author": {
     "name": "Wlad Paiva",
