@@ -2,6 +2,7 @@
   "name": "aibitat",
   "version": "0.0.1-beta.4",
   "description": "An extensible, stateless and customizable framework for multi-agents conversation",
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/wladiston/aibitat.git"
