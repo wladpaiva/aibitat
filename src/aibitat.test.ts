@@ -303,3 +303,5 @@ test.todo('should call a function', async () => {
 })
 
 test.todo('should execute code', async () => {})
+
+test('should handle errors', async () => {})
