@@ -179,3 +179,11 @@ bun run examples/1-basic.ts
 
 This project was created using `bun init` in bun v1.0.3. [Bun](https://bun.sh)
 is a fast all-in-one JavaScript runtime.
+
+### Sponsors
+
+- [Every-AI: the largest ai tools directory & marketplace](http://www.every-ai.com)
+
+## License
+
+MIT
