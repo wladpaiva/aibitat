@@ -290,16 +290,34 @@ describe('as a group', () => {
   })
 })
 
-test.todo('should call a function', async () => {
-  const myFunc = mock((props: {x: number; y: number}) => {})
+test('should call a function', async () => {
+  const internet = mock((props: {query: string}) =>
+    Promise.resolve("I'm feeling lucky"),
+  )
 
   const aibitat = new AIbitat({
     ...defaultaibitat,
   })
+
+  aibitat.function({
+    name: 'internet',
+    description: 'Searches the internet for a given query.',
+    parameters: {
+      type: 'object',
+      properties: {
+        query: {
+          type: 'string',
+          description: 'The query to search for.',
+        },
+      },
+    },
+    handler: internet,
+  })
+
   await aibitat.start(defaultStart)
 
-  expect(myFunc).toHaveBeenCalledTimes(1)
-  expect(myFunc.mock.calls[0][0]).toEqual({x: 1, y: 2})
+  expect(internet).toHaveBeenCalledTimes(1)
+  expect(internet.mock.calls[0][0]).toEqual({query: "I'm feeling lucky"})
 })
 
 test.todo('should execute code', async () => {})

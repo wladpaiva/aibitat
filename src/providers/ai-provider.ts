@@ -1,4 +1,4 @@
-import {Message} from '../types.ts'
+import {Function, Message} from '../types.ts'
 
 export abstract class AIProvider<T> {
   private _client: T
@@ -19,5 +19,5 @@ export abstract class AIProvider<T> {
    * (Abstract async method) Create a completion based on the received messages.
    * @param messages A list of messages to send.
    */
-  abstract create(messages: Message[]): Promise<string>
+  abstract create(messages: Message[], functions?: Function[]): Promise<string>
 }

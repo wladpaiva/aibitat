@@ -2,7 +2,7 @@ import {OpenAIStream, StreamingTextResponse} from 'ai'
 import debug from 'debug'
 import OpenAI, {ClientOptions} from 'openai'
 
-import {Message} from '../types.ts'
+import {Function, Message} from '../types.ts'
 import {AIProvider} from './ai-provider.ts'
 
 const log = debug('autogen:provider:openai')
@@ -75,17 +75,20 @@ export class OpenAIProvider extends AIProvider<OpenAI> {
    * @param messages A list of messages to send to the OpenAI API.
    * @returns The completion.
    */
-  async create(messages: Message[]) {
+  async create(messages: Message[], functions?: Function[]) {
     log(`calling 'openai.chat.completions.create' with model '${this.model}'`)
 
     const response = await this.client.chat.completions.create({
       model: this.model,
       // stream: true,
       messages,
+      functions,
     })
 
     log('cost: ', this.getCost(response.usage))
 
+    // FIX: parei aqui.. agora preciso retornar a function call e chamar a função no reply
+    // caso function_call
     return response.choices[0].message.content!
 
     // const stream = OpenAIStream(response)
