@@ -3,6 +3,13 @@ import chalk from 'chalk'
 import debug from 'debug'
 
 import {
+  APIError,
+  AuthorizationError,
+  RateLimitError,
+  ServerError,
+  UnknownError,
+} from './error.ts'
+import {
   AIProvider,
   OpenAIProvider,
   type OpenAIModel,
@@ -108,8 +115,7 @@ type Chat = {
  */
 type ChatState = Omit<Chat, 'content'> & {
   content?: string
-  // state: 'success' | 'loading' | 'error' | 'interrupt'
-  state: 'success' | 'interrupt'
+  state: 'success' | 'interrupt' | 'error'
 }
 
 /**
@@ -333,9 +339,59 @@ export class AIbitat {
 
     this._chats.push(chat)
     this.emitter.emit('message', chat, this)
+  }
+
+  /**
+   * Triggered when an error occurs during the chat.
+   *
+   * @param listener
+   * @returns
+   */
+  public onError(
+    listener: (
+      /**
+       * The message when the error occurred.
+       */
+      {}: {from: string; to: string},
+
+      /**
+       * The error that occurred.
+       *
+       * Native errors are:
+       * - `APIError`
+       * - `AuthorizationError`
+       * - `UnknownError`
+       * - `RateLimitError`
+       * - `ServerError`
+       */
+      error: unknown,
+
+      /**
+       * The AIbitat instance.
+       */
+      aibitat: AIbitat,
+    ) => void,
+  ) {
+    this.emitter.on('replyError', listener)
     return this
   }
 
+  /**
+   * Register an error in the chat history.
+   * This will trigger the `onError` event.
+   *
+   * @param message
+   */
+  private newError(message: {from: string; to: string}, error: unknown) {
+    const chat = {
+      ...message,
+      content: error instanceof Error ? error.message : String(error),
+      state: 'error' as const,
+    }
+
+    this._chats.push(chat)
+    this.emitter.emit('replyError', chat, error, this)
+  }
   /**
    * Triggered when a chat is interrupted by a node.
    *
@@ -609,12 +665,16 @@ ${this.getHistory({to})
       ...chatHistory,
     ]
 
-    // get the chat completion
-    const content = await provider.create(messages)
-    // TODO: add error handling
-    this.newMessage({from, to, content})
-
-    return content
+    try {
+      // get the chat completion
+      const content = await provider.create(messages)
+      // TODO: add error handling
+      this.newMessage({from, to, content})
+      return content
+    } catch (error: unknown) {
+      this.newError({from, to}, error)
+      throw error
+    }
   }
 
   /**

@@ -9,11 +9,7 @@ export class APIError extends AIbitatError {
   }
 }
 
-export class AuthorizationError extends AIbitatError {
-  constructor(message?: string | undefined) {
-    super(message)
-  }
-}
+export class AuthorizationError extends AIbitatError {}
 export class UnknownError extends AIbitatError {}
 export class RateLimitError extends AIbitatError {}
 export class ServerError extends AIbitatError {}

@@ -304,4 +304,43 @@ test.todo('should call a function', async () => {
 
 test.todo('should execute code', async () => {})
 
-test('should handle errors', async () => {})
+describe('when errors happen', () => {
+  test('should escape unknown errors', async () => {
+    const customError = new Error('unknown error')
+
+    ai.create.mockImplementation(() => {
+      throw customError
+    })
+
+    const aibitat = new AIbitat(defaultaibitat)
+
+    try {
+      await aibitat.start(defaultStart)
+    } catch (error) {
+      expect(error).toEqual(customError)
+    }
+  })
+
+  test.todo('should handle errors', async () => {
+    ai.create.mockImplementation(() =>
+      Promise.reject(new Error('custom error')),
+    )
+
+    const aibitat = new AIbitat(defaultaibitat)
+
+    try {
+      await aibitat.start(defaultStart)
+    } catch (error) {
+      throw error
+    }
+
+    console.log('🔥 ~ ', aibitat.chats)
+    expect(aibitat.chats).toHaveLength(2)
+    expect(aibitat.chats.at(-1)).toEqual({
+      from: '🤖',
+      to: '🧑',
+      content: '...',
+      state: 'error',
+    })
+  })
+})

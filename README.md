@@ -14,9 +14,10 @@ provider agnostic and can be used with any provider that implements the
 `AIProvider` interface. Also, it is stateless and can be used in a serverless
 environment.
 
-By default, it uses **OpenAI** and **GPT-3.5-TURBO** as the provider but you can
-change it by passing `provider` and `model` to the `AIbitat` constructor or by
-setting them on the node config.
+By default, aibitat uses **OpenAI** and **GPT-3.5-TURBO** as the provider for
+the conversation and **GPT-4** for predicting the next agent to speak but you
+can change it by passing `provider` and `model` to the `AIbitat` constructor or
+by setting them on the specific node config.
 
 ### Features
 

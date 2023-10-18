@@ -1,5 +1,8 @@
 import {Message} from '../types.ts'
 
+/**
+ * A service that provides an AI client to create a completion.
+ */
 export abstract class AIProvider<T> {
   private _client: T
 
@@ -17,6 +20,8 @@ export abstract class AIProvider<T> {
 
   /**
    * (Abstract async method) Create a completion based on the received messages.
+   *
+   * @throws It should thrown known treated errors from `src/error.ts`.
    * @param messages A list of messages to send.
    */
   abstract create(messages: Message[]): Promise<string>
