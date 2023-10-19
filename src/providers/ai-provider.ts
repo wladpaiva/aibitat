@@ -1,4 +1,5 @@
-import {Function, Message} from '../types.ts'
+import {FunctionDefinition} from '../aibitat.ts'
+import {Message} from '../types.ts'
 
 /**
  * A service that provides an AI client to create a completion.
@@ -24,5 +25,8 @@ export abstract class AIProvider<T> {
    * @throws It should thrown known treated errors from `src/error.ts`.
    * @param messages A list of messages to send.
    */
-  abstract create(messages: Message[], functions?: Function[]): Promise<string>
+  abstract create(
+    messages: Message[],
+    functions?: FunctionDefinition[],
+  ): Promise<string>
 }

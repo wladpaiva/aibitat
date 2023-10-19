@@ -207,7 +207,7 @@ export type FunctionDefinition = {
    * hallucinate parameters not defined by your function schema. Validate the
    * arguments in your code before calling your function.
    */
-  handler: (props: unknown, aibitat: AIbitat) => Promise<string> | string
+  handler: (...params: any[]) => Promise<string> | string
 }
 
 /**
@@ -716,15 +716,9 @@ ${this.getHistory({to})
 
     // get the functions that the node can call
     const functions =
-      fromConfig.functions?.map(name => {
-        const definition = this.functions.get(name)
-        if (!definition) {
-          throw new Error(`Function "${name}" is not defined`)
-        }
-
-        const {handler, ...rest} = definition
-        return rest
-      }) || []
+      (fromConfig.functions
+        ?.map(name => this.functions.get(name))
+        .filter(a => !!a) as FunctionDefinition[]) || []
 
     // get the chat completion
     const content = await provider.create(messages, functions)

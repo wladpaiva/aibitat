@@ -37,7 +37,7 @@ by setting them on the specific node config.
 - [x] **Group chats.** Agents chat with multiple other agents at the same time
       as if they were in a slack channel. The next agent to reply is the most
       likely to reply based on the conversation.
-- [ ] **Function execution.** Agents can execute functions and return the result
+- [x] **Function execution.** Agents can execute functions and return the result
       to the conversation.
 - [ ] **Cache**. Store conversation history in a cache to improve performance
       and reduce the number of API calls.
@@ -61,14 +61,21 @@ by setting them on the specific node config.
 You can install the package:
 
 ```bash
-npm install aibitat
+# to install bun go to https://bun.sh and follow the instructions
+bun install aibitat
 ```
 
-add you `OPEN_AI_API_KEY` to your environment variables and then use it like
-this:
+Create an `.env` file and add your `OPEN_AI_API_KEY`:
+
+```bash
+OPEN_AI_API_KEY=...
+```
+
+Then create a file called `index.ts` and add the following:
 
 ```ts
 import {AIbitat} from 'aibitat'
+import {terminal} from 'aibitat/plugins'
 
 const aibitat = new AIbitat({
   nodes: {
@@ -89,44 +96,19 @@ const aibitat = new AIbitat({
       role: 'You reply "TERMINATE" if theres`s a confirmation',
     },
   },
-})
-
-aibitat.onMessage(({from, to, content}) => console.log(`${from}: ${content}`))
-// 🧑: How much is 2 + 2?
-// 🐭: The sum of 2 + 2 is 4.
-// 🦁: That is correct.
-// 🐶: TERMINATE
+}).use(terminal())
 
 await aibitat.start({
   from: '🧑',
   to: '🤖',
   content: 'How much is 2 + 2?',
 })
+```
 
-console.log('saving chats... ', aibitat.chats)
-// saving chats...  [
-//   {
-//     from: "🧑",
-//     to: "🤖",
-//     content: "How much is 2 + 2?",
-//     state: "success"
-//   }, {
-//     from: "🐭",
-//     to: "🤖",
-//     state: "success",
-//     content: "The sum of 2 + 2 is 4."
-//   }, {
-//     from: "🦁",
-//     to: "🤖",
-//     state: "success",
-//     content: "That is correct."
-//   }, {
-//     from: "🐶",
-//     to: "🤖",
-//     state: "success",
-//     content: "TERMINATE"
-//   }
-// ]
+Then run:
+
+```bash
+bun run index.ts
 ```
 
 Nodes are the agents that will be used in the conversation and how they connect

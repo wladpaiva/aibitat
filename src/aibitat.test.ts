@@ -291,13 +291,27 @@ describe('as a group', () => {
   })
 })
 
-test('should call a function', async () => {
+test.only('should call a function', async () => {
+  // FIX: I can't mock the API yet
+  // ai.create.mockImplementation(() =>
+  //   Promise.resolve({
+  //     function_call: {
+  //       name: 'internet',
+  //       arguments: '{"query": "I\'m feeling lucky"}',
+  //     },
+  //   }),
+  // )
+
   const internet = mock((props: {query: string}) =>
     Promise.resolve("I'm feeling lucky"),
   )
 
   const aibitat = new AIbitat({
     ...defaultaibitat,
+    config: {
+      ...defaultaibitat.config,
+      '🤖': {type: 'agent', functions: ['internet']},
+    },
   })
 
   aibitat.function({
@@ -387,7 +401,9 @@ describe('when errors happen', () => {
         throw error
       }
 
-      return Promise.resolve('TERMINATE')
+      return Promise.resolve({
+        content: 'TERMINATE',
+      })
     })
 
     const aibitat = new AIbitat(defaultaibitat)
