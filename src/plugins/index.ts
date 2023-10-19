@@ -1,1 +1,1 @@
-export * from './terminal.ts'
+export * from './cli.ts'

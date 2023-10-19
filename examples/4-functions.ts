@@ -1,7 +1,7 @@
 import * as cheerio from 'cheerio'
 
 import {AIbitat} from '../src'
-import {terminal} from '../src/plugins'
+import {cli} from '../src/plugins'
 
 const aibitat = new AIbitat({
   nodes: {
@@ -12,7 +12,7 @@ const aibitat = new AIbitat({
     '🤖': {type: 'agent', functions: ['aibitat-releases']},
   },
 })
-  .use(terminal())
+  .use(cli())
   .function({
     name: 'aibitat-releases',
     description: 'List of releases of AIbitat and the notes for each release.',

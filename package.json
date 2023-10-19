@@ -55,6 +55,7 @@
   "dependencies": {
     "@inquirer/prompts": "^3.2.0",
     "ai": "^2.2.14",
+    "cheerio": "^1.0.0-rc.12",
     "debug": "^4.3.4",
     "openai": "^4.11.1"
   },

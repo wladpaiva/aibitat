@@ -1,7 +1,7 @@
 import {input} from '@inquirer/prompts'
 
 import {AIbitat} from '../src'
-import {terminal} from '../src/plugins'
+import {cli} from '../src/plugins'
 
 // Ask for the topic of the chat before starting the conversation
 const topic = await input({
@@ -56,7 +56,7 @@ const aibitat = new AIbitat({
       Provide an optimize post's meta description and title.`,
     },
   },
-}).use(terminal())
+}).use(cli())
 
 await aibitat.start({
   from: 'client',

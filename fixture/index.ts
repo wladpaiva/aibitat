@@ -1,5 +1,5 @@
 import {AIbitat} from 'aibitat'
-import {terminal} from 'aibitat/plugins'
+import {cli} from 'aibitat/plugins'
 
 const aibitat = new AIbitat({
   nodes: {
@@ -20,7 +20,7 @@ const aibitat = new AIbitat({
       role: 'You reply "TERMINATE" if theres`s a confirmation',
     },
   },
-}).use(terminal())
+}).use(cli())
 
 await aibitat.start({
   from: '🧑',
