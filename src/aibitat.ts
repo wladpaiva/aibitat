@@ -3,6 +3,13 @@ import chalk from 'chalk'
 import debug from 'debug'
 
 import {
+  APIError,
+  AuthorizationError,
+  RateLimitError,
+  ServerError,
+  UnknownError,
+} from './error.ts'
+import {
   AIProvider,
   OpenAIProvider,
   type OpenAIModel,
@@ -108,8 +115,7 @@ type Chat = {
  */
 type ChatState = Omit<Chat, 'content'> & {
   content?: string
-  // state: 'success' | 'loading' | 'error' | 'interrupt'
-  state: 'success' | 'interrupt'
+  state: 'success' | 'interrupt' | 'error'
 }
 
 /**
@@ -266,7 +272,7 @@ export class AIbitat {
    * @param listener
    * @returns
    */
-  public onTerminate(listener: (node: string, aibitat: AIbitat) => void) {
+  public onTerminate(listener: (node: string) => void) {
     this.emitter.on('terminate', listener)
     return this
   }
@@ -286,9 +292,7 @@ export class AIbitat {
    * @param listener
    * @returns
    */
-  public onInterrupt(
-    listener: (chat: {from: string; to: string}, aibitat: AIbitat) => void,
-  ) {
+  public onInterrupt(listener: (chat: {from: string; to: string}) => void) {
     this.emitter.on('interrupt', listener)
     return this
   }
@@ -314,7 +318,7 @@ export class AIbitat {
    * @param listener
    * @returns
    */
-  public onMessage(listener: (chat: ChatState, aibitat: AIbitat) => void) {
+  public onMessage(listener: (chat: ChatState) => void) {
     this.emitter.on('message', listener)
     return this
   }
@@ -333,9 +337,52 @@ export class AIbitat {
 
     this._chats.push(chat)
     this.emitter.emit('message', chat, this)
+  }
+
+  /**
+   * Triggered when an error occurs during the chat.
+   *
+   * @param listener
+   * @returns
+   */
+  public onError(
+    listener: (
+      /**
+       * The error that occurred.
+       *
+       * Native errors are:
+       * - `APIError`
+       * - `AuthorizationError`
+       * - `UnknownError`
+       * - `RateLimitError`
+       * - `ServerError`
+       */
+      error: unknown,
+      /**
+       * The message when the error occurred.
+       */
+      {}: {from: string; to: string},
+    ) => void,
+  ) {
+    this.emitter.on('replyError', listener)
     return this
   }
 
+  /**
+   * Register an error in the chat history.
+   * This will trigger the `onError` event.
+   *
+   * @param message
+   */
+  private newError(message: {from: string; to: string}, error: unknown) {
+    const chat = {
+      ...message,
+      content: error instanceof Error ? error.message : String(error),
+      state: 'error' as const,
+    }
+    this._chats.push(chat)
+    this.emitter.emit('replyError', error, chat)
+  }
   /**
    * Triggered when a chat is interrupted by a node.
    *
@@ -429,7 +476,15 @@ export class AIbitat {
     }
 
     // If it's a direct message, reply to the message
-    const reply = await this.reply(message)
+    let reply: string
+    try {
+      reply = await this.reply(message)
+    } catch (error: unknown) {
+      if (error instanceof APIError) {
+        return this.newError({from: message.from, to: message.to}, error)
+      }
+      throw error
+    }
 
     if (
       reply === 'TERMINATE' ||
@@ -611,7 +666,6 @@ ${this.getHistory({to})
 
     // get the chat completion
     const content = await provider.create(messages)
-    // TODO: add error handling
     this.newMessage({from, to, content})
 
     return content
@@ -659,6 +713,23 @@ ${this.getHistory({to})
       await this.chat({from, to})
     }
 
+    return this
+  }
+
+  /**
+   * Retry the last chat that threw an error.
+   * If the last chat was not an error, it will throw an error.
+   */
+  public async retry() {
+    const lastChat = this._chats.at(-1)
+    if (!lastChat || lastChat.state !== 'error') {
+      throw new Error('No chat to retry')
+    }
+
+    // remove the last chat's that threw an error
+    const {from, to} = this._chats.pop()!
+
+    await this.chat({from, to})
     return this
   }
 

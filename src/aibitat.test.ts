@@ -2,6 +2,7 @@ import {beforeEach, describe, expect, mock, test} from 'bun:test'
 import OpenAI from 'openai'
 
 import {AIbitat, type AIbitatProps} from './aibitat.ts'
+import {RateLimitError} from './error.ts'
 import {AIProvider} from './providers/index.ts'
 import {type Message} from './types.ts'
 
@@ -303,3 +304,85 @@ test.todo('should call a function', async () => {
 })
 
 test.todo('should execute code', async () => {})
+
+describe('when errors happen', () => {
+  test('should escape unknown errors', async () => {
+    const customError = new Error('unknown error')
+
+    ai.create.mockImplementation(() => {
+      throw customError
+    })
+
+    const aibitat = new AIbitat(defaultaibitat)
+
+    try {
+      await aibitat.start(defaultStart)
+    } catch (error) {
+      expect(error).toEqual(customError)
+    }
+  })
+
+  test('should handle known errors', async () => {
+    const error = new RateLimitError('known error!!!')
+    ai.create.mockImplementation(() => {
+      throw error
+    })
+
+    const aibitat = new AIbitat(defaultaibitat)
+    aibitat.onError((_, error) => {
+      expect(error).toEqual(error)
+    })
+
+    await aibitat.start(defaultStart)
+
+    expect(aibitat.chats).toHaveLength(2)
+    expect(aibitat.chats.at(-1)).toEqual({
+      from: '🤖',
+      to: '🧑',
+      content: 'known error!!!',
+      state: 'error',
+    })
+  })
+
+  test('should trigger the error event', async () => {
+    const error = new RateLimitError('401: Rate limit')
+    ai.create.mockImplementation(() => {
+      throw error
+    })
+
+    const aibitat = new AIbitat(defaultaibitat)
+
+    const callback = mock((error: unknown) => {})
+    aibitat.onError(callback)
+
+    await aibitat.start(defaultStart)
+
+    expect(callback).toHaveBeenCalledTimes(1)
+    expect(callback.mock.calls[0][0]).toEqual(error)
+  })
+
+  test('should be able to retry', async () => {
+    let i = 0
+    const error = new RateLimitError('401: Rate limit')
+    ai.create.mockImplementation(() => {
+      if (i++ === 0) {
+        throw error
+      }
+
+      return Promise.resolve('TERMINATE')
+    })
+
+    const aibitat = new AIbitat(defaultaibitat)
+    await aibitat.start(defaultStart)
+    await aibitat.retry()
+
+    expect(ai.create).toHaveBeenCalledTimes(2)
+    expect(aibitat.chats).toHaveLength(2)
+    expect(aibitat.chats.at(-1)).toEqual({
+      from: '🤖',
+      to: '🧑',
+      content: 'TERMINATE',
+      state: 'success',
+    })
+  })
+})

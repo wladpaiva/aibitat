@@ -14,9 +14,10 @@ provider agnostic and can be used with any provider that implements the
 `AIProvider` interface. Also, it is stateless and can be used in a serverless
 environment.
 
-By default, it uses **OpenAI** and **GPT-3.5-TURBO** as the provider but you can
-change it by passing `provider` and `model` to the `AIbitat` constructor or by
-setting them on the node config.
+By default, aibitat uses **OpenAI** and **GPT-3.5-TURBO** as the provider for
+the conversation and **GPT-4** for predicting the next agent to speak but you
+can change it by passing `provider` and `model` to the `AIbitat` constructor or
+by setting them on the specific node config.
 
 ### Features
 
@@ -40,7 +41,7 @@ setting them on the node config.
       to the conversation.
 - [ ] **Cache**. Store conversation history in a cache to improve performance
       and reduce the number of API calls.
-- [ ] **Error handling.** Handle API errors gracefully.
+- [x] **Error handling.** Handle API errors gracefully.
 - [ ] **Code execution.** Agents can execute code and return the result to the
       conversation.
 
@@ -153,11 +154,13 @@ aibitat.onMessage(({from, to, content}) => console.log(`${from}: ${content}`))
 
 The following events are available:
 
-- `start`: Called when the chat starts.
-- `message`: Called when a message is added to the chat history.
-- `terminate`: Called when the conversation is terminated. Generally means there
-  is nothing else to do and a new conversation should be started.
-- `interrupt`: Called when the conversation is interrupted by an agent.
+- `onStart`: Called when the chat starts.
+- `onError`: Called when there's a known error (see `src/error.ts`). To retry,
+  call `.retry()`.
+- `onMessage`: Called when a message is added to the chat history.
+- `onTerminate`: Called when the conversation is terminated. Generally means
+  there is nothing else to do and a new conversation should be started.
+- `onInterrupt`: Called when the conversation is interrupted by an agent.
   Generally means the agent has a question or needs help. The conversation can
   be resumed by calling `.continue(feedback)`.
 
