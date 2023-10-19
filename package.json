@@ -17,6 +17,10 @@
     ".": {
       "import": "./dist/index.js",
       "types": "./src/index.ts"
+    },
+    "./plugins": {
+      "import": "./dist/plugins/index.js",
+      "types": "./src/plugins/index.ts"
     }
   },
   "files": [
@@ -25,7 +29,9 @@
   ],
   "type": "module",
   "scripts": {
-    "build": "bun build ./src/index.ts --outdir=./dist",
+    "build": "bun run build:package && bun run build:plugins",
+    "build:package": "bun build ./src/index.ts --outdir=./dist",
+    "build:plugins": "bun build ./src/plugins/index.ts --target node --outdir=./dist/plugins",
     "format": "prettier --write .",
     "prepare": "is-ci || husky install",
     "typecheck": "tsc --noEmit",
