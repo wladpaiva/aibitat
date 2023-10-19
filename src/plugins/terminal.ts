@@ -2,6 +2,7 @@ import {input} from '@inquirer/prompts'
 import chalk from 'chalk'
 
 import {AIbitatPlugin} from '..'
+import {RateLimitError, ServerError} from '../error'
 
 /**
  * Print a message on the terminal
@@ -92,6 +93,16 @@ export function terminal({
     setup(aibitat) {
       let printing: Promise<void> | null = null
 
+      aibitat.onError(error => {
+        console.error(chalk.red(`   error: ${(error as Error).message}`))
+
+        if (error instanceof RateLimitError || error instanceof ServerError) {
+          console.error(chalk.red(`   retrying in 60 seconds...`))
+          setTimeout(aibitat.retry, 60000)
+          return
+        }
+      })
+
       aibitat.onStart(() => {
         console.log()
         console.log('🚀 starting chat ...\n')
@@ -106,7 +117,7 @@ export function terminal({
 
       aibitat.onTerminate(() => console.timeEnd('🚀 chat finished'))
 
-      aibitat.onInterrupt(async (node, current) => {
+      aibitat.onInterrupt(async node => {
         await printing
         const feedback = await askForFeedback(node)
         // Add an extra line after the message
@@ -117,7 +128,7 @@ export function terminal({
           return process.exit(0)
         }
 
-        await current.continue(feedback)
+        await aibitat.continue(feedback)
       })
     },
   } as AIbitatPlugin

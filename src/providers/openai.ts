@@ -1,7 +1,27 @@
-import {OpenAIStream, StreamingTextResponse} from 'ai'
 import debug from 'debug'
-import OpenAI, {ClientOptions} from 'openai'
+import OpenAI, {
+  ClientOptions,
+  APIConnectionError as OpenAIAPIConnectionError,
+  APIConnectionTimeoutError as OpenAIAPIConnectionTimeoutError,
+  APIError as OpenAIAPIError,
+  APIUserAbortError as OpenAIAPIUserAbortError,
+  AuthenticationError as OpenAIAuthenticationError,
+  BadRequestError as OpenAIBadRequestError,
+  ConflictError as OpenAIConflictError,
+  InternalServerError as OpenAIInternalServerError,
+  NotFoundError as OpenAINotFoundError,
+  PermissionDeniedError as OpenAIPermissionDeniedError,
+  RateLimitError as OpenAIRateLimitError,
+  UnprocessableEntityError as OpenAIUnprocessableEntityError,
+} from 'openai'
 
+import {
+  APIError,
+  AuthorizationError,
+  RateLimitError,
+  ServerError,
+  UnknownError,
+} from '../error.ts'
 import {Function, Message} from '../types.ts'
 import {AIProvider} from './ai-provider.ts'
 
@@ -58,6 +78,7 @@ export class OpenAIProvider extends AIProvider<OpenAI> {
     const {
       options = {
         apiKey: process.env.OPENAI_API_KEY,
+        maxRetries: 3,
       },
       model = 'gpt-3.5-turbo',
     } = config
@@ -78,22 +99,61 @@ export class OpenAIProvider extends AIProvider<OpenAI> {
   async create(messages: Message[], functions?: Function[]) {
     log(`calling 'openai.chat.completions.create' with model '${this.model}'`)
 
-    const response = await this.client.chat.completions.create({
-      model: this.model,
-      // stream: true,
-      messages,
-      functions,
-    })
+    try {
+      const response = await this.client.chat.completions.create({
+        model: this.model,
+        // stream: true,
+        messages,
+        functions,
+      })
 
-    log('cost: ', this.getCost(response.usage))
+      log('cost: ', this.getCost(response.usage))
 
-    // FIX: parei aqui.. agora preciso retornar a function call e chamar a função no reply
-    // caso function_call
-    return response.choices[0].message.content!
+      // FIX: parei aqui.. agora preciso retornar a function call e chamar a função no reply
+      // caso function_call
+      return response.choices[0].message.content!
 
-    // const stream = OpenAIStream(response)
-    // const result = new StreamingTextResponse(stream)
-    // return await result.text()
+      // const stream = OpenAIStream(response)
+      // const result = new StreamingTextResponse(stream)
+      // return await result.text()
+    } catch (error) {
+      // if (error instanceof OpenAIBadRequestError) {
+      //   throw new Error(error.message)
+      // }
+
+      if (
+        error instanceof OpenAIAuthenticationError ||
+        error instanceof OpenAIPermissionDeniedError
+      ) {
+        throw new AuthorizationError(error.message)
+      }
+
+      // if (error instanceof OpenAINotFoundError) {
+      //   throw new Error(error.message)
+      // }
+
+      // if (error instanceof OpenAIConflictError) {
+      //   throw new Error(error.message)
+      // }
+
+      // if (error instanceof OpenAIUnprocessableEntityError) {
+      //   throw new Error(error.message)
+      // }
+
+      if (error instanceof OpenAIRateLimitError) {
+        throw new RateLimitError(error.message)
+      }
+
+      if (error instanceof OpenAIInternalServerError) {
+        throw new ServerError(error.message)
+      }
+
+      if (error instanceof OpenAIAPIError) {
+        throw new UnknownError(error.message)
+      }
+
+      throw error
+    }
   }
 
   /**
