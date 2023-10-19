@@ -291,7 +291,7 @@ describe('as a group', () => {
   })
 })
 
-test.only('should call a function', async () => {
+test.todo('should call a function', async () => {
   // FIX: I can't mock the API yet
   // ai.create.mockImplementation(() =>
   //   Promise.resolve({
@@ -401,9 +401,7 @@ describe('when errors happen', () => {
         throw error
       }
 
-      return Promise.resolve({
-        content: 'TERMINATE',
-      })
+      return Promise.resolve('TERMINATE')
     })
 
     const aibitat = new AIbitat(defaultaibitat)
