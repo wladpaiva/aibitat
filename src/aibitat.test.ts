@@ -406,6 +406,14 @@ describe('when errors happen', () => {
 
     const aibitat = new AIbitat(defaultaibitat)
     await aibitat.start(defaultStart)
+
+    expect(aibitat.chats.at(-1)).toEqual({
+      from: '🤖',
+      to: '🧑',
+      content: '401: Rate limit',
+      state: 'error',
+    })
+
     await aibitat.retry()
 
     expect(ai.create).toHaveBeenCalledTimes(2)
