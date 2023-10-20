@@ -486,7 +486,15 @@ export class AIbitat {
 
     if (fromNode.type === 'manager') {
       // select a node from the group
-      const nextNode = await this.selectNext(message.from)
+      let nextNode: string | undefined
+      try {
+        nextNode = await this.selectNext(message.from)
+      } catch (error: unknown) {
+        if (error instanceof APIError) {
+          return this.newError({from: message.from, to: message.to}, error)
+        }
+        throw error
+      }
 
       if (!nextNode) {
         // TODO: should it throw an error or keep the chat alive when there is no node to chat with in the group?
@@ -715,10 +723,9 @@ ${this.getHistory({to})
     ]
 
     // get the functions that the node can call
-    const functions =
-      (fromConfig.functions
-        ?.map(name => this.functions.get(name))
-        .filter(a => !!a) as FunctionDefinition[]) || []
+    const functions = fromConfig.functions
+      ?.map(name => this.functions.get(name))
+      .filter(a => !!a) as FunctionDefinition[] | undefined
 
     // get the chat completion
     const content = await provider.create(messages, functions)
