@@ -28,7 +28,9 @@ function cli({
 
         if (error instanceof RateLimitError || error instanceof ServerError) {
           console.error(chalk.red(`   retrying in 60 seconds...`))
-          setTimeout(aibitat.retry, 60000)
+          setTimeout(() => {
+            aibitat.retry()
+          }, 60000)
           return
         }
       })
