@@ -21,7 +21,7 @@ function cli({
   return {
     name: 'cli',
     setup(aibitat) {
-      let printing: Promise<void> | null = null
+      let printing: Promise<void>[] = []
 
       aibitat.onError(error => {
         console.error(chalk.red(`   error: ${(error as Error).message}`))
@@ -39,18 +39,18 @@ function cli({
         console.log()
         console.log('🚀 starting chat ...\n')
         console.time('🚀 chat finished!')
-        printing = Promise.resolve()
+        printing = [Promise.resolve()]
       })
 
       aibitat.onMessage(async message => {
-        await printing
-        printing = cli.print(message, simulateStream)
+        await Promise.all(printing)
+        printing.push(cli.print(message, simulateStream))
       })
 
       aibitat.onTerminate(() => console.timeEnd('🚀 chat finished'))
 
       aibitat.onInterrupt(async node => {
-        await printing
+        await Promise.all(printing)
         const feedback = await cli.askForFeedback(node)
         // Add an extra line after the message
         console.log()
