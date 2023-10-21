@@ -5,17 +5,79 @@ import {AIbitatPlugin} from '..'
 import {RateLimitError, ServerError} from '../error'
 
 /**
+ * Command-line Interface plugin. It prints the messages on the console and asks for feedback
+ * while the conversation is running in the background.
+ */
+function cli({
+  simulateStream = true,
+}: {
+  /**
+   * Simulate streaming by breaking the cached response into chunks.
+   * Helpful to make the conversation more realistic and faster.
+   * @default true
+   */
+  simulateStream?: boolean
+} = {}) {
+  return {
+    name: 'cli',
+    setup(aibitat) {
+      let printing: Promise<void> | null = null
+
+      aibitat.onError(error => {
+        console.error(chalk.red(`   error: ${(error as Error).message}`))
+
+        if (error instanceof RateLimitError || error instanceof ServerError) {
+          console.error(chalk.red(`   retrying in 60 seconds...`))
+          setTimeout(() => {
+            aibitat.retry()
+          }, 60000)
+          return
+        }
+      })
+
+      aibitat.onStart(() => {
+        console.log()
+        console.log('🚀 starting chat ...\n')
+        console.time('🚀 chat finished!')
+        printing = Promise.resolve()
+      })
+
+      aibitat.onMessage(async message => {
+        await printing
+        printing = cli.print(message, simulateStream)
+      })
+
+      aibitat.onTerminate(() => console.timeEnd('🚀 chat finished'))
+
+      aibitat.onInterrupt(async node => {
+        await printing
+        const feedback = await cli.askForFeedback(node)
+        // Add an extra line after the message
+        console.log()
+
+        if (feedback === 'exit') {
+          console.timeEnd('🚀 chat finished')
+          return process.exit(0)
+        }
+
+        await aibitat.continue(feedback)
+      })
+    },
+  } as AIbitatPlugin
+}
+
+/**
  * Print a message on the terminal
  *
  * @param message
  * @param simulateStream
  */
-export async function print(
+cli.print = async (
   message: {from: string; to: string; content?: string} & {
     state: 'loading' | 'error' | 'success' | 'interrupt'
   },
   simulateStream: boolean = true,
-) {
+) => {
   const replying = chalk.dim(`(to ${message.to})`)
   const reference = `${chalk.magenta('✎')} ${chalk.bold(
     message.from,
@@ -66,7 +128,7 @@ export async function print(
  * @param node
  * @returns
  */
-export function askForFeedback(node: {from: string; to: string}) {
+cli.askForFeedback = (node: {from: string; to: string}) => {
   return input({
     message: `Provide feedback to ${chalk.yellow(node.to)} as ${chalk.yellow(
       node.from,
@@ -74,62 +136,4 @@ export function askForFeedback(node: {from: string; to: string}) {
   })
 }
 
-/**
- * Terminal plugin. It prints the messages on the terminal and asks for feedback
- * while the conversation is running in the background.
- */
-export function terminal({
-  simulateStream = true,
-}: {
-  /**
-   * Simulate streaming by breaking the cached response into chunks.
-   * Helpful to make the conversation more realistic and faster.
-   * @default true
-   */
-  simulateStream?: boolean
-} = {}) {
-  return {
-    name: 'terminal',
-    setup(aibitat) {
-      let printing: Promise<void> | null = null
-
-      aibitat.onError(error => {
-        console.error(chalk.red(`   error: ${(error as Error).message}`))
-
-        if (error instanceof RateLimitError || error instanceof ServerError) {
-          console.error(chalk.red(`   retrying in 60 seconds...`))
-          setTimeout(aibitat.retry, 60000)
-          return
-        }
-      })
-
-      aibitat.onStart(() => {
-        console.log()
-        console.log('🚀 starting chat ...\n')
-        console.time('🚀 chat finished!')
-        printing = Promise.resolve()
-      })
-
-      aibitat.onMessage(async message => {
-        await printing
-        printing = print(message, simulateStream)
-      })
-
-      aibitat.onTerminate(() => console.timeEnd('🚀 chat finished'))
-
-      aibitat.onInterrupt(async node => {
-        await printing
-        const feedback = await askForFeedback(node)
-        // Add an extra line after the message
-        console.log()
-
-        if (feedback === 'exit') {
-          console.timeEnd('🚀 chat finished')
-          return process.exit(0)
-        }
-
-        await aibitat.continue(feedback)
-      })
-    },
-  } as AIbitatPlugin
-}
+export {cli}

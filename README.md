@@ -30,6 +30,58 @@ by setting them on the specific node config.
 - **Human participation:** AIbitat seamlessly allows human participation. This
   means that humans can provide input and feedback to the agents as needed.
 
+## Usage
+
+> For a more complete example, check out the [examples](./examples) folder.
+
+You can install the package:
+
+```bash
+# to install bun go to https://bun.sh and follow the instructions
+bun install aibitat
+```
+
+Create an `.env` file and add your `OPEN_AI_API_KEY`:
+
+```bash
+OPEN_AI_API_KEY=...
+```
+
+Then create a file called `index.ts` and add the following:
+
+```ts
+import {AIbitat} from 'aibitat'
+import {cli} from 'aibitat/plugins'
+
+const aibitat = new AIbitat({
+  nodes: {
+    team: ['math', 'reviewer', 'client'],
+  },
+  config: {
+    client: {
+      type: 'assistant',
+      interrupt: 'NEVER',
+      role: 'You are a human assistant. Reply "TERMINATE" in when there is a correct answer.',
+    },
+    team: {type: 'manager'},
+    math: {type: 'agent', role: 'You do the math.'},
+    reviewer: {type: 'agent', role: 'You check to see if its correct'},
+  },
+}).use(cli())
+
+await aibitat.start({
+  from: 'client',
+  to: 'team',
+  content: 'How much is 2 + 2?',
+})
+```
+
+Then run:
+
+```bash
+bun run index.ts
+```
+
 ## Roadmap
 
 - [x] **Automated reply with loop prevention.** Chats are kept alive until the
@@ -37,7 +89,7 @@ by setting them on the specific node config.
 - [x] **Group chats.** Agents chat with multiple other agents at the same time
       as if they were in a slack channel. The next agent to reply is the most
       likely to reply based on the conversation.
-- [ ] **Function execution.** Agents can execute functions and return the result
+- [x] **Function execution.** Agents can execute functions and return the result
       to the conversation.
 - [ ] **Cache**. Store conversation history in a cache to improve performance
       and reduce the number of API calls.
@@ -45,7 +97,7 @@ by setting them on the specific node config.
 - [ ] **Code execution.** Agents can execute code and return the result to the
       conversation.
 
-#### Providers
+### Providers
 
 - [ ] Anthropic
 - [ ] Cohere
@@ -54,80 +106,7 @@ by setting them on the specific node config.
 - [x] OpenAI
 - [ ] Replicate
 
-## Usage
-
-> For a more complete example, check out the [examples](./examples) folder.
-
-You can install the package:
-
-```bash
-npm install aibitat
-```
-
-add you `OPEN_AI_API_KEY` to your environment variables and then use it like
-this:
-
-```ts
-import {AIbitat} from 'aibitat'
-
-const aibitat = new AIbitat({
-  nodes: {
-    '🧑': '🤖',
-    '🤖': ['🐭', '🦁', '🐶'],
-  },
-  config: {
-    '🧑': {
-      type: 'assistant',
-      interrupt: 'NEVER',
-      role: 'You are a human assistant. Reply "TERMINATE" in when there is a correct answer.',
-    },
-    '🤖': {type: 'manager'},
-    '🐭': {type: 'agent', role: 'You do the math.'},
-    '🦁': {type: 'agent', role: 'You check to see if its correct'},
-    '🐶': {
-      type: 'agent',
-      role: 'You reply "TERMINATE" if theres`s a confirmation',
-    },
-  },
-})
-
-aibitat.onMessage(({from, to, content}) => console.log(`${from}: ${content}`))
-// 🧑: How much is 2 + 2?
-// 🐭: The sum of 2 + 2 is 4.
-// 🦁: That is correct.
-// 🐶: TERMINATE
-
-await aibitat.start({
-  from: '🧑',
-  to: '🤖',
-  content: 'How much is 2 + 2?',
-})
-
-console.log('saving chats... ', aibitat.chats)
-// saving chats...  [
-//   {
-//     from: "🧑",
-//     to: "🤖",
-//     content: "How much is 2 + 2?",
-//     state: "success"
-//   }, {
-//     from: "🐭",
-//     to: "🤖",
-//     state: "success",
-//     content: "The sum of 2 + 2 is 4."
-//   }, {
-//     from: "🦁",
-//     to: "🤖",
-//     state: "success",
-//     content: "That is correct."
-//   }, {
-//     from: "🐶",
-//     to: "🤖",
-//     state: "success",
-//     content: "TERMINATE"
-//   }
-// ]
-```
+## Documentation
 
 Nodes are the agents that will be used in the conversation and how they connect
 to each other. The `config` object is used to configure each node.
@@ -163,6 +142,74 @@ The following events are available:
 - `onInterrupt`: Called when the conversation is interrupted by an agent.
   Generally means the agent has a question or needs help. The conversation can
   be resumed by calling `.continue(feedback)`.
+
+### Functions
+
+Functions are used to execute code and return the result to the conversation. To
+use them, add them to the `function` object and add it to the `functions`
+property to the node config:
+
+```ts
+const aibitat = new AIbitat({
+  config: {
+    client: {
+      type: 'assistant',
+      interrupt: 'NEVER',
+    },
+    reviewer: {type: 'agent', functions: ['doSomething']},
+  },
+  }
+}).function({
+  name: 'doSomething',
+  description: 'Let me do something for you.',
+  parameters: {
+    type: 'object',
+    properties: {},
+  },
+  async handler() {
+    return '...'
+  },
+})
+```
+
+The results will then be sent to the provider and returned to the conversation.
+
+### Plugins
+
+Plugins are used to extend the functionality of AIbitat. They can be used to add
+new features or to integrate with other services. You can create your own
+plugins by implementing the `AIbitatPlugin` interface.
+
+To use a plugin, call the `use` method:
+
+```ts
+...
+import {cli} from 'aibitat/plugins'
+
+const aibitat = new AIbitat({
+  ...
+}).use(cli())
+```
+
+You can also create your own plugin by implementing the `AIbitatPlugin`
+interface:
+
+```ts
+import {AIbitatPlugin} from 'aibitat'
+
+export function myPlugin(): AIbitatPlugin {
+  return {
+    name: 'my-plugin',
+    setup(aibitat) {
+      console.log(`setting up my plugin`)
+
+      aibitat.onMessage(({from, to, content}) => {
+        console.log(`${from}: ${content}`)
+      })
+    },
+  }
+}
+```
 
 ## Contributing
 

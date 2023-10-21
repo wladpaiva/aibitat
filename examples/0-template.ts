@@ -1,7 +1,7 @@
 import {input} from '@inquirer/prompts'
 
 import {AIbitat} from '../src'
-import {terminal} from '../src/plugins'
+import {cli} from '../src/plugins'
 
 const aibitat = new AIbitat({
   nodes: {
@@ -11,7 +11,7 @@ const aibitat = new AIbitat({
     '🧑': {type: 'assistant'},
     '🤖': {type: 'agent'},
   },
-}).use(terminal())
+}).use(cli())
 
 // Ask for the topic of the chat before starting the conversation
 const topic = await input({

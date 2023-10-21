@@ -15,6 +15,7 @@ import OpenAI, {
   UnprocessableEntityError as OpenAIUnprocessableEntityError,
 } from 'openai'
 
+import {FunctionDefinition} from '../aibitat.ts'
 import {
   APIError,
   AuthorizationError,
@@ -22,7 +23,7 @@ import {
   ServerError,
   UnknownError,
 } from '../error.ts'
-import {Message} from '../types.ts'
+import {Function, Message} from '../types.ts'
 import {AIProvider} from './ai-provider.ts'
 
 const log = debug('autogen:provider:openai')
@@ -96,7 +97,10 @@ export class OpenAIProvider extends AIProvider<OpenAI> {
    * @param messages A list of messages to send to the OpenAI API.
    * @returns The completion.
    */
-  async create(messages: Message[]) {
+  async create(
+    messages: Message[],
+    functions?: FunctionDefinition[],
+  ): Promise<string> {
     log(`calling 'openai.chat.completions.create' with model '${this.model}'`)
 
     try {
@@ -104,12 +108,40 @@ export class OpenAIProvider extends AIProvider<OpenAI> {
         model: this.model,
         // stream: true,
         messages,
+        functions,
       })
 
       log('cost: ', this.getCost(response.usage))
 
-      return response.choices[0].message.content!
+      if (functions && response.choices[0].message.function_call) {
+        // send the info on the function call and function response to GPT
+        // and return the response
 
+        const functionResponse = await this.callFunction(
+          functions,
+          response.choices[0].message.function_call,
+        )
+
+        return await this.create(
+          [
+            ...messages,
+            response.choices[0].message, // extend conversation with assistant's reply
+            //  extend conversation with function response
+            {
+              role: 'function',
+              name: response.choices[0].message.function_call.name,
+              content: functionResponse,
+            },
+          ],
+          functions,
+        )
+      }
+
+      if (response.choices[0].message.content) {
+        return response.choices[0].message.content
+      }
+
+      throw new Error('No content found or function_call in the response')
       // const stream = OpenAIStream(response)
       // const result = new StreamingTextResponse(stream)
       // return await result.text()
@@ -185,5 +217,35 @@ export class OpenAIProvider extends AIProvider<OpenAI> {
       style: 'currency',
       currency: 'USD',
     }).format(total)
+  }
+
+  /**
+   * Call the function from the completion.
+   *
+   * @param functions The list of functions to call.
+   * @param completion The completion to get the function from.
+   * @returns The completion.
+   */
+  async callFunction(
+    functions: FunctionDefinition[],
+    call: OpenAI.Chat.ChatCompletionMessage.FunctionCall,
+  ) {
+    const funcToCall = functions.find(f => f.name === call.name)
+    if (!funcToCall) {
+      throw new Error(`Function '${call.name}' not found`)
+    }
+
+    let json: any
+
+    try {
+      json = JSON.parse(call.arguments)
+    } catch (error) {
+      throw new Error(
+        `Model created an invalid JSON: '${call.arguments}' for function '${call.name}'`,
+      )
+    }
+
+    log('calling function: ', funcToCall.name, 'with arguments: ', json)
+    return await funcToCall.handler(json)
   }
 }

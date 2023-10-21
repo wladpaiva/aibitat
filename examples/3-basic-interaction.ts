@@ -1,5 +1,5 @@
 import {AIbitat} from '../src'
-import {terminal} from '../src/plugins'
+import {cli} from '../src/plugins'
 
 const aibitat = new AIbitat({
   nodes: {
@@ -20,7 +20,7 @@ const aibitat = new AIbitat({
       role: `You are a peer-reviewer and you do not solve math problems. Check the result from mathematician and then confirm. Just confirm, no talk.`,
     },
   },
-}).use(terminal())
+}).use(cli())
 
 await aibitat.start({
   from: 'client',

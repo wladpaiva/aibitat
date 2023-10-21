@@ -292,15 +292,47 @@ describe('as a group', () => {
 })
 
 test.todo('should call a function', async () => {
-  const myFunc = mock((props: {x: number; y: number}) => {})
+  // FIX: I can't mock the API yet
+  // ai.create.mockImplementation(() =>
+  //   Promise.resolve({
+  //     function_call: {
+  //       name: 'internet',
+  //       arguments: '{"query": "I\'m feeling lucky"}',
+  //     },
+  //   }),
+  // )
+
+  const internet = mock((props: {query: string}) =>
+    Promise.resolve("I'm feeling lucky"),
+  )
 
   const aibitat = new AIbitat({
     ...defaultaibitat,
+    config: {
+      ...defaultaibitat.config,
+      '🤖': {type: 'agent', functions: ['internet']},
+    },
   })
+
+  aibitat.function({
+    name: 'internet',
+    description: 'Searches the internet for a given query.',
+    parameters: {
+      type: 'object',
+      properties: {
+        query: {
+          type: 'string',
+          description: 'The query to search for.',
+        },
+      },
+    },
+    handler: internet,
+  })
+
   await aibitat.start(defaultStart)
 
-  expect(myFunc).toHaveBeenCalledTimes(1)
-  expect(myFunc.mock.calls[0][0]).toEqual({x: 1, y: 2})
+  expect(internet).toHaveBeenCalledTimes(1)
+  expect(internet.mock.calls[0][0]).toEqual({query: "I'm feeling lucky"})
 })
 
 test.todo('should execute code', async () => {})
@@ -374,6 +406,14 @@ describe('when errors happen', () => {
 
     const aibitat = new AIbitat(defaultaibitat)
     await aibitat.start(defaultStart)
+
+    expect(aibitat.chats.at(-1)).toEqual({
+      from: '🤖',
+      to: '🧑',
+      content: '401: Rate limit',
+      state: 'error',
+    })
+
     await aibitat.retry()
 
     expect(ai.create).toHaveBeenCalledTimes(2)
