@@ -1,5 +1,5 @@
 import {AIbitat} from '../src'
-import {cli, webBrowsing} from '../src/plugins'
+import {cli, experimental_webBrowsing} from '../src/plugins'
 
 const aibitat = new AIbitat({
   nodes: {},
@@ -19,7 +19,7 @@ const aibitat = new AIbitat({
   },
 })
   .use(cli())
-  .use(webBrowsing())
+  .use(experimental_webBrowsing())
 
 await aibitat.start({
   from: 'client',

@@ -135,7 +135,7 @@ async function summarize(content: string): Promise<string> {
   return output
 }
 
-export function webBrowsing({}: {} = {}) {
+export function experimental_webBrowsing({}: {} = {}) {
   return {
     name: 'web-browsing-plugin',
     setup(aibitat) {
