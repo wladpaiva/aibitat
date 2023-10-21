@@ -636,14 +636,12 @@ export class AIbitat {
       {
         role: 'user' as const,
         content: `You are in a role play game. The following roles are available:
-${availableNodes
-  .map(node => `[${node}]: ${this.config[node].role}`)
-  .join('\n')}.
+${availableNodes.map(node => `@${node}: ${this.config[node].role}`).join('\n')}.
 
 Read the following conversation.
 
 CHAT HISTORY
-${history.map(c => `[${c.from}]: ${c.content}`).join('\n')}
+${history.map(c => `@${c.from}: ${c.content}`).join('\n')}
 
 Then select the next role from that is going to speak next. 
 Only return the role.
@@ -652,8 +650,8 @@ Only return the role.
     ]
 
     // ask the provider to select the next node to chat with
-    // and remove the brackets from the response
-    const name = (await provider.create(messages)).replace(/^\[|\]$/g, '')
+    // and remove the @ from the response
+    const name = (await provider.create(messages)).replace(/^@/g, '')
     if (this.config[name]) {
       return name
     }
