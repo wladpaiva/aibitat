@@ -143,23 +143,6 @@ The following events are available:
   Generally means the agent has a question or needs help. The conversation can
   be resumed by calling `.continue(feedback)`.
 
-### Plugins
-
-Plugins are used to extend the functionality of AIbitat. They can be used to add
-new features or to integrate with other services. You can create your own
-plugins by implementing the `AIbitatPlugin` interface.
-
-To use a plugin, call the `use` method:
-
-```ts
-...
-import {cli} from 'aibitat/plugins'
-
-const aibitat = new AIbitat({
-  ...
-}).use(cli())
-```
-
 ### Functions
 
 Functions are used to execute code and return the result to the conversation. To
@@ -184,12 +167,49 @@ const aibitat = new AIbitat({
     properties: {},
   },
   async handler() {
-    return 'return something important'
+    return '...'
   },
 })
 ```
 
 The results will then be sent to the provider and returned to the conversation.
+
+### Plugins
+
+Plugins are used to extend the functionality of AIbitat. They can be used to add
+new features or to integrate with other services. You can create your own
+plugins by implementing the `AIbitatPlugin` interface.
+
+To use a plugin, call the `use` method:
+
+```ts
+...
+import {cli} from 'aibitat/plugins'
+
+const aibitat = new AIbitat({
+  ...
+}).use(cli())
+```
+
+You can also create your own plugin by implementing the `AIbitatPlugin`
+interface:
+
+```ts
+import {AIbitatPlugin} from 'aibitat'
+
+export function myPlugin(): AIbitatPlugin {
+  return {
+    name: 'my-plugin',
+    setup(aibitat) {
+      console.log(`setting up my plugin`)
+
+      aibitat.onMessage(({from, to, content}) => {
+        console.log(`${from}: ${content}`)
+      })
+    },
+  }
+}
+```
 
 ## Contributing
 
