@@ -49,7 +49,7 @@ const aibitat = new AIbitat()
 
 await aibitat.start({
   from: 'client',
-  to: 'team',
+  to: 'management',
   content: 'How much is 2 + 2?',
 })
 ```
