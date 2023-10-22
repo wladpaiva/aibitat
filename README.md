@@ -193,6 +193,15 @@ export function myPlugin(): AIbitatPlugin {
 }
 ```
 
+**List of available plugins:**
+
+- `cli`: Adds a CLI interaction to the chat.
+- `fileHistory`: Saves the chat history to a JSON file. Defaults to `history`
+  folder
+- `experimental_webBrowsing`: Adds a `web-browsing` function to the chat that
+  enable agents to search and navigate on the internet. NOTE: this plugin is
+  experimental and may not work as expected.
+
 ### Listening to events
 
 You can listen to events using the `on` method:

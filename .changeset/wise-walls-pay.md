@@ -2,4 +2,4 @@
 'aibitat': patch
 ---
 
-`fileHistory` plugin
+Added `fileHistory` plugin to the list of available plugins.

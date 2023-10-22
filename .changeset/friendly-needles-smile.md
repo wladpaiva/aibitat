@@ -2,4 +2,4 @@
 'aibitat': patch
 ---
 
-add dist files in the exported module
+fix a bug where compiled files were not being included in the npm package

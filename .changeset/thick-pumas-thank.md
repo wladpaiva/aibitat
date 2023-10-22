@@ -2,4 +2,4 @@
 'aibitat': patch
 ---
 
-added `onStart` event
+added `onStart` event that is called when the chat starts.

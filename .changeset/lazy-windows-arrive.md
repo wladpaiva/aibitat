@@ -2,4 +2,5 @@
 'aibitat': patch
 ---
 
-fix a where it was selecting the wrong the next participant in the group
+fix a bug where it was selecting the wrong the next participant in the group
+chat
