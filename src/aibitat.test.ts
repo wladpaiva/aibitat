@@ -19,17 +19,6 @@ beforeEach(() => {
   ai.create.mockImplementation(() => Promise.resolve('TERMINATE'))
 })
 
-const defaultaibitat: AIbitatProps = {
-  provider,
-  nodes: {
-    '🧑': '🤖',
-  },
-  config: {
-    '🧑': {type: 'assistant'},
-    '🤖': {type: 'agent'},
-  },
-}
-
 const defaultStart = {
   from: '🧑',
   to: '🤖',
@@ -38,7 +27,10 @@ const defaultStart = {
 
 describe('direct message', () => {
   test('should reply a chat', async () => {
-    const aibitat = new AIbitat(defaultaibitat)
+    const aibitat = new AIbitat({provider})
+      .agent('🧑', {interrupt: 'ALWAYS'})
+      .agent('🤖')
+
     await aibitat.start(defaultStart)
 
     expect(aibitat.chats).toHaveLength(2)
@@ -54,13 +46,9 @@ describe('direct message', () => {
   test('should have a system message', async () => {
     const role = 'You are a 🤖.'
 
-    const aibitat = new AIbitat({
-      ...defaultaibitat,
-      config: {
-        ...defaultaibitat.config,
-        '🤖': {type: 'agent', role},
-      },
-    })
+    const aibitat = new AIbitat({provider})
+      .agent('🧑', {interrupt: 'ALWAYS'})
+      .agent('🤖', {role})
 
     await aibitat.start(defaultStart)
 
@@ -74,13 +62,9 @@ describe('direct message', () => {
       Promise.resolve(i >= 10 ? 'TERMINATE' : `... ${i++}`),
     )
 
-    const aibitat = new AIbitat({
-      ...defaultaibitat,
-      config: {
-        ...defaultaibitat.config,
-        '🧑': {type: 'assistant', interrupt: 'NEVER'},
-      },
-    })
+    const aibitat = new AIbitat({provider})
+      .agent('🧑', {interrupt: 'NEVER'})
+      .agent('🤖')
 
     await aibitat.start(defaultStart)
 
@@ -91,14 +75,9 @@ describe('direct message', () => {
   test('should not engage in infinity conversations', async () => {
     ai.create.mockImplementation(() => Promise.resolve('...'))
 
-    const aibitat = new AIbitat({
-      ...defaultaibitat,
-      maxRounds: 4,
-      config: {
-        ...defaultaibitat.config,
-        '🧑': {type: 'assistant', interrupt: 'NEVER'},
-      },
-    })
+    const aibitat = new AIbitat({provider, maxRounds: 4})
+      .agent('🧑', {interrupt: 'NEVER'})
+      .agent('🤖')
 
     await aibitat.start(defaultStart)
 
@@ -107,7 +86,7 @@ describe('direct message', () => {
 
   test('should have initial messages', async () => {
     const aibitat = new AIbitat({
-      ...defaultaibitat,
+      provider,
       maxRounds: 1,
       chats: [
         {
@@ -118,6 +97,8 @@ describe('direct message', () => {
         },
       ],
     })
+      .agent('🧑', {interrupt: 'ALWAYS'})
+      .agent('🤖')
 
     await aibitat.start({
       from: '🤖',
@@ -135,7 +116,9 @@ describe('direct message', () => {
   })
 
   test('should trigger an event when a reply is received', async () => {
-    const aibitat = new AIbitat(defaultaibitat)
+    const aibitat = new AIbitat({provider})
+      .agent('🧑', {interrupt: 'ALWAYS'})
+      .agent('🤖')
 
     const callback = mock(() => {})
     aibitat.onMessage(callback)
@@ -148,10 +131,9 @@ describe('direct message', () => {
   test('should always interrupt interaction after each reply', async () => {
     ai.create.mockImplementation(() => Promise.resolve('...'))
 
-    const aibitat = new AIbitat({
-      ...defaultaibitat,
-      interrupt: 'ALWAYS',
-    })
+    const aibitat = new AIbitat({provider, interrupt: 'ALWAYS'})
+      .agent('🧑')
+      .agent('🤖')
 
     const callback = mock(() => {})
     aibitat.onInterrupt(callback)
@@ -164,13 +146,9 @@ describe('direct message', () => {
   test('should trigger an event when a interaction is needed', async () => {
     ai.create.mockImplementation(() => Promise.resolve('...'))
 
-    const aibitat = new AIbitat({
-      ...defaultaibitat,
-      config: {
-        ...defaultaibitat.config,
-        '🤖': {type: 'agent', interrupt: 'ALWAYS'},
-      },
-    })
+    const aibitat = new AIbitat({provider})
+      .agent('🧑', {interrupt: 'ALWAYS'})
+      .agent('🤖')
 
     const callback = mock(() => {})
     aibitat.onInterrupt(callback)
@@ -183,7 +161,9 @@ describe('direct message', () => {
   test('should auto-reply only when user skip engaging', async () => {
     ai.create.mockImplementation(() => Promise.resolve('...'))
 
-    const aibitat = new AIbitat(defaultaibitat)
+    const aibitat = new AIbitat({provider})
+      .agent('🧑', {interrupt: 'ALWAYS'})
+      .agent('🤖')
     // HACK: we should use `expect.assertions(1)` here but
     // bun has not implemented it yet.
     // so I have to work around it.
@@ -209,10 +189,9 @@ describe('direct message', () => {
   test('should continue conversation with user`s feedback', async () => {
     ai.create.mockImplementation(() => Promise.resolve('...'))
 
-    const aibitat = new AIbitat({
-      ...defaultaibitat,
-      maxRounds: 10,
-    })
+    const aibitat = new AIbitat({provider, maxRounds: 10})
+      .agent('🧑', {interrupt: 'ALWAYS'})
+      .agent('🤖')
 
     // HACK: we should use `expect.assertions(1)` here but
     // bun has not implemented it yet.
@@ -238,38 +217,32 @@ describe('direct message', () => {
 })
 
 describe('as a group', () => {
-  const groupaibitat: AIbitatProps = {
-    ...defaultaibitat,
-    nodes: {
-      '🧑': '🤖',
-      '🤖': ['🐶', '😸', '🐭'],
-    },
-    config: {
-      '🧑': {type: 'assistant'},
-      '🤖': {type: 'manager', provider},
-      '🐶': {type: 'agent'},
-      '😸': {type: 'agent'},
-      '🐭': {type: 'agent'},
-    },
-  }
+  const members = ['🐶', '😸', '🐭']
+
+  let aibitat: AIbitat
 
   beforeEach(() => {
     ai.create.mockImplementation(x => {
       const roleMessage = x.find(y => y.content?.includes('next role'))
-
       if (roleMessage) {
-        // pick a random node from groupaibitat.nodes
-        const nodes = groupaibitat.nodes['🤖']
-        const nextRole = nodes[Math.floor(Math.random() * nodes.length)]
+        // pick a random node from group
+        const nextRole = members[Math.floor(Math.random() * members.length)]
         return Promise.resolve(nextRole)
       }
 
       return Promise.resolve('...')
     })
+
+    aibitat = new AIbitat({provider})
+      .agent('🧑', {interrupt: 'ALWAYS'})
+      .agent('🐶')
+      .agent('😸')
+      .agent('🐭')
   })
 
   test('should chat to members of the group', async () => {
-    const aibitat = new AIbitat(groupaibitat)
+    aibitat.channel('🤖', members, {provider})
+
     await aibitat.start(defaultStart)
 
     expect(aibitat.chats).toHaveLength(11)
@@ -278,13 +251,8 @@ describe('as a group', () => {
   test.todo('should infer the next speaker', async () => {})
 
   test('should chat only a specific amount of rounds', async () => {
-    const aibitat = new AIbitat({
-      ...groupaibitat,
-      config: {
-        ...groupaibitat.config,
-        '🤖': {type: 'manager', provider, maxRounds: 4},
-      },
-    })
+    aibitat.channel('🤖', members, {provider, maxRounds: 4})
+
     await aibitat.start(defaultStart)
 
     expect(aibitat.chats).toHaveLength(5)
@@ -306,13 +274,9 @@ test.todo('should call a function', async () => {
     Promise.resolve("I'm feeling lucky"),
   )
 
-  const aibitat = new AIbitat({
-    ...defaultaibitat,
-    config: {
-      ...defaultaibitat.config,
-      '🤖': {type: 'agent', functions: ['internet']},
-    },
-  })
+  const aibitat = new AIbitat({provider})
+    .agent('🧑', {interrupt: 'ALWAYS'})
+    .agent('🤖', {functions: ['internet']})
 
   aibitat.function({
     name: 'internet',
@@ -345,7 +309,9 @@ describe('when errors happen', () => {
       throw customError
     })
 
-    const aibitat = new AIbitat(defaultaibitat)
+    const aibitat = new AIbitat({provider})
+      .agent('🧑', {interrupt: 'ALWAYS'})
+      .agent('🤖')
 
     try {
       await aibitat.start(defaultStart)
@@ -360,7 +326,9 @@ describe('when errors happen', () => {
       throw error
     })
 
-    const aibitat = new AIbitat(defaultaibitat)
+    const aibitat = new AIbitat({provider})
+      .agent('🧑', {interrupt: 'ALWAYS'})
+      .agent('🤖')
     aibitat.onError((_, error) => {
       expect(error).toEqual(error)
     })
@@ -382,7 +350,9 @@ describe('when errors happen', () => {
       throw error
     })
 
-    const aibitat = new AIbitat(defaultaibitat)
+    const aibitat = new AIbitat({provider})
+      .agent('🧑', {interrupt: 'ALWAYS'})
+      .agent('🤖')
 
     const callback = mock((error: unknown) => {})
     aibitat.onError(callback)
@@ -404,7 +374,9 @@ describe('when errors happen', () => {
       return Promise.resolve('TERMINATE')
     })
 
-    const aibitat = new AIbitat(defaultaibitat)
+    const aibitat = new AIbitat({provider})
+      .agent('🧑', {interrupt: 'ALWAYS'})
+      .agent('🤖')
     await aibitat.start(defaultStart)
 
     expect(aibitat.chats.at(-1)).toEqual({

@@ -3,15 +3,7 @@ import * as cheerio from 'cheerio'
 import {AIbitat} from '../src'
 import {cli} from '../src/plugins'
 
-const aibitat = new AIbitat({
-  nodes: {
-    '🧑': '🤖',
-  },
-  config: {
-    '🧑': {type: 'assistant'},
-    '🤖': {type: 'agent', functions: ['aibitat-releases']},
-  },
-})
+export const aibitat = new AIbitat()
   .use(cli())
   .function({
     name: 'aibitat-releases',
@@ -29,9 +21,18 @@ const aibitat = new AIbitat({
       return text
     },
   })
+  .agent('🧑', {
+    interrupt: 'ALWAYS',
+    role: 'You are a human assistant.',
+  })
+  .agent('🤖', {
+    functions: ['aibitat-releases'],
+  })
 
-await aibitat.start({
-  from: '🧑',
-  to: '🤖',
-  content: `Talk about the latest news about AIbitat`,
-})
+if (import.meta.main) {
+  await aibitat.start({
+    from: '🧑',
+    to: '🤖',
+    content: `Talk about the latest news about AIbitat`,
+  })
+}

@@ -2,19 +2,12 @@ import {EventEmitter} from 'events'
 import chalk from 'chalk'
 import debug from 'debug'
 
-import {
-  APIError,
-  AuthorizationError,
-  RateLimitError,
-  ServerError,
-  UnknownError,
-} from './error.ts'
+import {APIError} from './error.ts'
 import {
   AIProvider,
   OpenAIProvider,
   type OpenAIModel,
 } from './providers/index.ts'
-import {Message} from './types.ts'
 
 const log = debug('autogen:chat-aibitat')
 
@@ -34,95 +27,58 @@ export type ProviderConfig =
     }
 
 /**
- * Base config for AIbitat nodes.
+ * Base config for AIbitat agents.
  */
-export type BaseNodeConfig = ProviderConfig & {
-  /** The role this node will play in the conversation */
+export type AgentConfig = ProviderConfig & {
+  /** The role this agent will play in the conversation */
   role?: string
+
   /**
    * When the chat should be interrupted for feedbacks.
-   *
-   * - `assistant` nodes will ALWAYS interrupt the chat by default.
-   * - `manager` nodes will NEVER interrupt the chat by default.
-   * - `agent` nodes will NEVER interrupt the chat by default.
+   * @default 'NEVER'
    */
   interrupt?: 'NEVER' | 'ALWAYS'
 
   /**
-   * The functions that this node can call.
+   * The functions that this agent can call.
    * @default []
    */
   functions?: string[]
 }
 
 /**
- * Agents are fully autonomous and can solve tasks with LLM.
+ * The channel configuration for the AIbitat.
  */
-export type Agent = BaseNodeConfig & {
-  /** The type of the node */
-  type: 'agent'
-}
-
-/**
- * Managers are designed to take care of a group of agents.
- */
-export type Manager = BaseNodeConfig & {
-  /** The type of the node */
-  type: 'manager'
+export type ChannelConfig = ProviderConfig & {
+  /** The role this agent will play in the conversation */
+  role?: string
 
   /**
-   * The maximum number of rounds a group will talk to each member
+   * The maximum number of rounds a agent can chat with the channel
    * @default 10
    */
   maxRounds?: number
 }
 
 /**
- * Assistants are designed to solve a task with LLM and interrupt the chat
- * when he understands that the task is completed.
+ * A route between two agents or channels.
  */
-export type Assistant = BaseNodeConfig & {
-  /** The type of the node */
-  type: 'assistant'
-}
-
-/**
- * A Node config for AIbitat.
- */
-export type NodeConfig = Agent | Manager | Assistant
-
-/**
- * Configuration for all Nodes in AIbitat.
- */
-export type Config = {
-  // TODO: Add types for this
-  [x: string]: NodeConfig
-  //   [K in keyof typeof config.config]: NodeConfig
-}
-
-/**
- * A list of nodes and their corresponding connections.
- *
- * String values are interpreted as the name of the node.
- * Array values are interpreted as a group of nodes.
- */
-type Nodes = {
-  [K in keyof Config]: string | string[]
+type Route = {
+  from: string
+  to: string
 }
 
 /**
  * A chat message.
  */
-type Chat = {
-  from: string
-  to: string
+type Message = Route & {
   content: string
 }
 
 /**
  * A chat message that is saved in the history.
  */
-type ChatState = Omit<Chat, 'content'> & {
+type Chat = Omit<Message, 'content'> & {
   content?: string
   state: 'success' | 'interrupt' | 'error'
 }
@@ -130,24 +86,14 @@ type ChatState = Omit<Chat, 'content'> & {
 /**
  * Chat history.
  */
-type History = Array<ChatState>
+type History = Array<Chat>
 
 /**
  * AIbitat props.
  */
 export type AIbitatProps = ProviderConfig & {
   /**
-   * The nodes and their connections.
-   */
-  nodes: Nodes
-
-  /**
-   * The configuration for all nodes.
-   */
-  config: Config
-
-  /**
-   * Chat history between all nodes.
+   * Chat history between all agents.
    * @default []
    */
   chats?: History
@@ -169,7 +115,15 @@ export type AIbitatProps = ProviderConfig & {
  * Plugin to use with the aibitat
  */
 export type AIbitatPlugin = {
+  /**
+   * The name of the plugin. This will be used to identify the plugin.
+   * If the plugin is already installed, it will replace the old plugin.
+   */
   name: string
+
+  /**
+   * The setup function to be called when the plugin is installed.
+   */
   setup: (aibitat: AIbitat) => void
 }
 
@@ -214,33 +168,29 @@ export type FunctionDefinition = {
  * AIbitat is a class that manages the conversation between agents.
  * It is designed to solve a task with LLM.
  *
- * Guiding the chat through a graph of nodes.
+ * Guiding the chat through a graph of agents.
  */
 export class AIbitat {
   private emitter = new EventEmitter()
 
-  private defaultProvider: AIProvider<unknown>
-  private defaultInterrupt: AIbitatProps['interrupt']
-  private maxRounds: number
+  private defaultProvider
+  private defaultInterrupt
+  private maxRounds
+  private _chats
 
-  private _chats: History
-  private nodes: Nodes
-  private config: Config
+  private agents = new Map<string, AgentConfig>()
+  private channels = new Map<string, {members: string[]} & ChannelConfig>()
   private functions = new Map<string, FunctionDefinition>()
 
-  constructor(props: AIbitatProps) {
+  constructor(props: AIbitatProps = {}) {
     const {
-      nodes,
-      config,
       chats = [],
-      interrupt,
+      interrupt = 'NEVER',
       maxRounds = 100,
       provider = 'openai',
       ...rest
     } = props
     this._chats = chats
-    this.nodes = nodes
-    this.config = config
     this.defaultInterrupt = interrupt
     this.maxRounds = maxRounds
 
@@ -251,7 +201,7 @@ export class AIbitat {
   }
 
   /**
-   * Get the chat history between all nodes.
+   * Get the chat history between agents and channels.
    */
   get chats() {
     return this._chats
@@ -266,33 +216,79 @@ export class AIbitat {
   }
 
   /**
-   * Get the specific node configuration.
+   * Add a new agent to the AIbitat.
    *
-   * @param node The name of the node.
-   * @throws When the node configuration is not found.
-   * @returns The node configuration.
+   * @param name
+   * @param config
+   * @returns
    */
-  private getNodeConfig(node: string) {
-    const config = this.config[node]
-    if (!config) {
-      throw new Error(`Node configuration "${node}" not found`)
-    }
-    return config
+  public agent(name: string, config: AgentConfig = {}) {
+    this.agents.set(name, config)
+    return this
   }
 
   /**
-   * Get the connections of a node.
+   * Add a new channel to the AIbitat.
    *
-   * @param node The name of the node.
-   * @throws When the node connections are not found.
-   * @returns The node connections.
+   * @param name
+   * @param members
+   * @param config
+   * @returns
    */
-  private getNodeConnections(node: string) {
-    const connections = this.nodes[node]
-    if (!connections) {
-      throw new Error(`Node connections "${node}" not found`)
+  public channel(name: string, members: string[], config: ChannelConfig = {}) {
+    this.channels.set(name, {
+      members,
+      ...config,
+    })
+    return this
+  }
+
+  /**
+   * Get the specific agent configuration.
+   *
+   * @param agent The name of the agent.
+   * @throws When the agent configuration is not found.
+   * @returns The agent configuration.
+   */
+  private getAgentConfig(agent: string) {
+    const config = this.agents.get(agent)
+    if (!config) {
+      throw new Error(`Agent configuration "${agent}" not found`)
     }
-    return connections
+    return {
+      role: 'You are a helpful AI assistant.',
+      //       role: `You are a helpful AI assistant.
+      // Solve tasks using your coding and language skills.
+      // In the following cases, suggest typescript code (in a typescript coding block) or shell script (in a sh coding block) for the user to execute.
+      //     1. When you need to collect info, use the code to output the info you need, for example, browse or search the web, download/read a file, print the content of a webpage or a file, get the current date/time, check the operating system. After sufficient info is printed and the task is ready to be solved based on your language skill, you can solve the task by yourself.
+      //     2. When you need to perform some task with code, use the code to perform the task and output the result. Finish the task smartly.
+      // Solve the task step by step if you need to. If a plan is not provided, explain your plan first. Be clear which step uses code, and which step uses your language skill.
+      // When using code, you must indicate the script type in the code block. The user cannot provide any other feedback or perform any other action beyond executing the code you suggest. The user can't modify your code. So do not suggest incomplete code which requires users to modify. Don't use a code block if it's not intended to be executed by the user.
+      // If you want the user to save the code in a file before executing it, put # filename: <filename> inside the code block as the first line. Don't include multiple code blocks in one response. Do not ask users to copy and paste the result. Instead, use 'print' function for the output when relevant. Check the execution result returned by the user.
+      // If the result indicates there is an error, fix the error and output the code again. Suggest the full code instead of partial code or code changes. If the error can't be fixed or if the task is not solved even after the code is executed successfully, analyze the problem, revisit your assumption, collect additional info you need, and think of a different approach to try.
+      // When you find an answer, verify the answer carefully. Include verifiable evidence in your response if possible.
+      // Reply "TERMINATE" when everything is done.`,
+      ...config,
+    }
+  }
+
+  /**
+   * Get the specific channel configuration.
+   *
+   * @param channel The name of the channel.
+   * @throws When the channel configuration is not found.
+   * @returns The channel configuration.
+   */
+  private getChannelConfig(channel: string) {
+    const config = this.channels.get(channel)
+    if (!config) {
+      throw new Error(`Channel configuration "${channel}" not found`)
+    }
+    return {
+      maxRounds: 10,
+      role: 'Group chat manager.',
+      ...config,
+    }
   }
 
   /**
@@ -302,15 +298,8 @@ export class AIbitat {
    * @returns The members of the group.
    */
   private getGroupMembers(node: string) {
-    const group = this.getNodeConnections(node)
-
-    if (!Array.isArray(group)) {
-      throw new Error(
-        `Group ${node} is not defined as an array in your connections`,
-      )
-    }
-
-    return group
+    const group = this.getChannelConfig(node)
+    return group.members
   }
 
   /**
@@ -339,7 +328,7 @@ export class AIbitat {
    * @param listener
    * @returns
    */
-  public onInterrupt(listener: (chat: {from: string; to: string}) => void) {
+  public onInterrupt(listener: (route: Route) => void) {
     this.emitter.on('interrupt', listener)
     return this
   }
@@ -350,12 +339,12 @@ export class AIbitat {
    * @param chat The nodes that participated in the interruption.
    * @returns
    */
-  private interrupt(chat: {from: string; to: string}) {
+  private interrupt(route: Route) {
     this._chats.push({
-      ...chat,
+      ...route,
       state: 'interrupt',
     })
-    this.emitter.emit('interrupt', chat, this)
+    this.emitter.emit('interrupt', route, this)
   }
 
   /**
@@ -365,7 +354,7 @@ export class AIbitat {
    * @param listener
    * @returns
    */
-  public onMessage(listener: (chat: ChatState) => void) {
+  public onMessage(listener: (chat: Chat) => void) {
     this.emitter.on('message', listener)
     return this
   }
@@ -376,7 +365,7 @@ export class AIbitat {
    *
    * @param message
    */
-  private newMessage(message: {from: string; to: string; content: string}) {
+  private newMessage(message: Message) {
     const chat = {
       ...message,
       state: 'success' as const,
@@ -408,7 +397,7 @@ export class AIbitat {
       /**
        * The message when the error occurred.
        */
-      {}: {from: string; to: string},
+      {}: Route,
     ) => void,
   ) {
     this.emitter.on('replyError', listener)
@@ -421,22 +410,23 @@ export class AIbitat {
    *
    * @param message
    */
-  private newError(message: {from: string; to: string}, error: unknown) {
+  private newError(route: Route, error: unknown) {
     const chat = {
-      ...message,
+      ...route,
       content: error instanceof Error ? error.message : String(error),
       state: 'error' as const,
     }
     this._chats.push(chat)
     this.emitter.emit('replyError', error, chat)
   }
+
   /**
    * Triggered when a chat is interrupted by a node.
    *
    * @param listener
    * @returns
    */
-  public onStart(listener: (chat: ChatState, aibitat: AIbitat) => void) {
+  public onStart(listener: (chat: Chat, aibitat: AIbitat) => void) {
     this.emitter.on('start', listener)
     return this
   }
@@ -446,7 +436,7 @@ export class AIbitat {
    *
    * @param message The message to start the chat.
    */
-  public async start(message: Chat) {
+  public async start(message: Message) {
     log(
       `starting a chat from ${chalk.yellow(message.from)} to ${chalk.yellow(
         message.to,
@@ -472,26 +462,24 @@ export class AIbitat {
    * @param chat The nodes that are going to participate in the chat.
    * @param keepAlive Whether to keep the chat alive.
    */
-  private async chat(message: {from: string; to: string}, keepAlive = true) {
+  private async chat(route: Route, keepAlive = true) {
     log(
-      `executing a chat from ${chalk.yellow(message.from)} to ${chalk.green(
-        message.to,
+      `executing a chat from ${chalk.yellow(route.from)} to ${chalk.green(
+        route.to,
       )}`,
     )
 
     // check if the message is for a group
     // if it is, select the next node to chat with from the group
     // and then ask them to reply.
-    const fromNode = this.getNodeConfig(message.from)
-
-    if (fromNode.type === 'manager') {
+    if (this.channels.get(route.from)) {
       // select a node from the group
       let nextNode: string | undefined
       try {
-        nextNode = await this.selectNext(message.from)
+        nextNode = await this.selectNext(route.from)
       } catch (error: unknown) {
         if (error instanceof APIError) {
-          return this.newError({from: message.from, to: message.to}, error)
+          return this.newError({from: route.from, to: route.to}, error)
         }
         throw error
       }
@@ -500,29 +488,28 @@ export class AIbitat {
         // TODO: should it throw an error or keep the chat alive when there is no node to chat with in the group?
         // maybe it should wrap up the chat and reply to the original node
         // For now, it will terminate the chat
-        this.terminate(message.from)
+        this.terminate(route.from)
         return
       }
 
       const nextChat = {
         from: nextNode,
-        to: message.from,
+        to: route.from,
       }
 
-      if (this.shouldNodeInterrupt(nextNode)) {
+      if (this.shouldAgentInterrupt(nextNode)) {
         this.interrupt(nextChat)
         return
       }
 
       // get chats only from the group's nodes
-      const history = this.getHistory({to: message.from})
-      const group = this.getGroupMembers(message.from)
+      const history = this.getHistory({to: route.from})
+      const group = this.getGroupMembers(route.from)
       const rounds = history.filter(chat => group.includes(chat.from)).length
 
-      // TODO: maybe this default should be defined somewhere else
-      const {maxRounds = 10} = fromNode
+      const {maxRounds} = this.getChannelConfig(route.from)
       if (rounds >= maxRounds) {
-        this.terminate(message.to)
+        this.terminate(route.to)
         return
       }
 
@@ -533,25 +520,28 @@ export class AIbitat {
     // If it's a direct message, reply to the message
     let reply: string
     try {
-      reply = await this.reply(message)
+      reply = await this.reply(route)
     } catch (error: unknown) {
       if (error instanceof APIError) {
-        return this.newError({from: message.from, to: message.to}, error)
+        return this.newError({from: route.from, to: route.to}, error)
       }
       throw error
     }
 
     if (
       reply === 'TERMINATE' ||
-      this.hasReachedMaximumRounds(message.from, message.to)
+      this.hasReachedMaximumRounds(route.from, route.to)
     ) {
-      this.terminate(message.to)
+      this.terminate(route.to)
       return
     }
 
-    const newChat = {to: message.from, from: message.to}
+    const newChat = {to: route.from, from: route.to}
 
-    if (reply === 'INTERRUPT' || this.shouldNodeInterrupt(message.to)) {
+    if (
+      reply === 'INTERRUPT' ||
+      (this.agents.get(route.to) && this.shouldAgentInterrupt(route.to))
+    ) {
       this.interrupt(newChat)
       return
     }
@@ -563,19 +553,14 @@ export class AIbitat {
   }
 
   /**
-   * Check if the node should interrupt the chat based on its configuration.
+   * Check if the agent should interrupt the chat based on its configuration.
    *
-   * @param node
-   * @returns {boolean} Whether the node should interrupt the chat.
+   * @param agent
+   * @returns {boolean} Whether the agent should interrupt the chat.
    */
-  private shouldNodeInterrupt(node: string) {
-    const config =
-      this.config[node].interrupt ||
-      (this.defaultInterrupt || this.config[node].type === 'assistant'
-        ? 'ALWAYS'
-        : 'NEVER')
-
-    return config === 'ALWAYS'
+  private shouldAgentInterrupt(agent: string) {
+    const config = this.getAgentConfig(agent)
+    return this.defaultInterrupt === 'ALWAYS' || config.interrupt === 'ALWAYS'
   }
 
   /**
@@ -583,28 +568,29 @@ export class AIbitat {
    * It will select the node that has not reached the maximum number of rounds yet and has not chatted with the manager in the last round.
    * If it could not determine the next node, it will return a random node.
    *
-   * @param manager The manager node.
+   * @param channel The name of the group.
    * @returns The name of the node to chat with.
    */
-  private async selectNext(manager: string) {
+  private async selectNext(channel: string) {
     // get all members of the group
-    const nodes = this.getGroupMembers(manager)
+    const nodes = this.getGroupMembers(channel)
+    const channelConfig = this.getChannelConfig(channel)
 
     // TODO: move this to when the group is created
     // warn if the group is underpopulated
     if (nodes.length < 3) {
       console.warn(
-        `- Group (${manager}) is underpopulated with ${nodes.length} agents. Direct communication would be more efficient.`,
+        `- Group (${channel}) is underpopulated with ${nodes.length} agents. Direct communication would be more efficient.`,
       )
     }
 
     // get the nodes that have not reached the maximum number of rounds
     const availableNodes = nodes.filter(
-      node => !this.hasReachedMaximumRounds(manager, node),
+      node => !this.hasReachedMaximumRounds(channel, node),
     )
 
     // remove the last node that chatted with the manager so it doesn't chat again
-    const lastChat = this._chats.filter(c => c.to === manager).at(-1)
+    const lastChat = this._chats.filter(c => c.to === channel).at(-1)
     if (lastChat) {
       const index = availableNodes.indexOf(lastChat.from)
       if (index > -1) {
@@ -620,23 +606,25 @@ export class AIbitat {
     // get the provider that will be used for the manager
     // if the manager has a provider, use that otherwise
     // use the GPT-4 because it has a better reasoning
-    const nodeProvider = this.getProviderForConfig(this.config[manager])
+    const nodeProvider = this.getProviderForConfig(channelConfig)
     const provider =
       nodeProvider ||
       this.getProviderForConfig({provider: 'openai', model: 'gpt-4'})!
 
-    const history = this.getHistory({to: manager})
+    const history = this.getHistory({to: channel})
 
     // build the messages to send to the provider
     const messages = [
       {
         role: 'system' as const,
-        content: this.getRoleContent(manager),
+        content: channelConfig.role,
       },
       {
         role: 'user' as const,
         content: `You are in a role play game. The following roles are available:
-${availableNodes.map(node => `@${node}: ${this.config[node].role}`).join('\n')}.
+${availableNodes
+  .map(node => `@${node}: ${this.getAgentConfig(node).role}`)
+  .join('\n')}.
 
 Read the following conversation.
 
@@ -652,7 +640,7 @@ Only return the role.
     // ask the provider to select the next node to chat with
     // and remove the @ from the response
     const name = (await provider.create(messages)).replace(/^@/g, '')
-    if (this.config[name]) {
+    if (this.agents.get(name)) {
       return name
     }
 
@@ -673,47 +661,38 @@ Only return the role.
    * @param chat.to The node that sent the chat.
    * @param chat.from The node that will reply to the chat.
    */
-  private async reply({from, to}: {from: string; to: string}) {
+  private async reply(route: Route) {
     // get the provider for the node that will reply
-    const toConfig = this.getNodeConfig(to)
-    const fromConfig = this.getNodeConfig(from)
+    const fromConfig = this.getAgentConfig(route.from)
 
-    const nodeProvider = this.getProviderForConfig(fromConfig)
-    const provider = nodeProvider || this.defaultProvider
-
-    const isSendingToManager = toConfig.type === 'manager'
-
-    let chatHistory: Message[]
-
-    // if it is sending message to a manager, send the group chat history to the provider
-    // otherwise, send the chat history between the two nodes
-    if (isSendingToManager) {
-      chatHistory = [
-        {
-          role: 'user',
-          content: `You are in a whatsapp group. Read the following conversation and then reply. 
+    const chatHistory =
+      // if it is sending message to a group, send the group chat history to the provider
+      // otherwise, send the chat history between the two nodes
+      this.channels.get(route.to)
+        ? [
+            {
+              role: 'user' as const,
+              content: `You are in a whatsapp group. Read the following conversation and then reply. 
 Do not add introduction or conclusion to your reply because this will be a continuous conversation. Don't introduce yourself.
 
 CHAT HISTORY
-${this.getHistory({to})
-  .map(c => `[${c.from}]: ${c.content}`)
+${this.getHistory({to: route.to})
+  .map(c => `@${c.from}: ${c.content}`)
   .join('\n')}
 
-[${from}]:
-`,
-        },
-      ]
-    } else {
-      chatHistory = this.getHistory({from, to}).map(c => ({
-        content: c.content,
-        role: c.from === to ? ('user' as const) : ('assistant' as const),
-      }))
-    }
+@${route.from}:`,
+            },
+          ]
+        : this.getHistory(route).map(c => ({
+            content: c.content,
+            role:
+              c.from === route.to ? ('user' as const) : ('assistant' as const),
+          }))
 
     // build the messages to send to the provider
-    const messages: Message[] = [
+    const messages = [
       {
-        content: this.getRoleContent(from),
+        content: fromConfig.role,
         role: 'system' as const,
       },
       // get the history of chats between the two nodes
@@ -725,9 +704,12 @@ ${this.getHistory({to})
       ?.map(name => this.functions.get(name))
       .filter(a => !!a) as FunctionDefinition[] | undefined
 
+    const nodeProvider = this.getProviderForConfig(fromConfig)
+    const provider = nodeProvider || this.defaultProvider
+
     // get the chat completion
     const content = await provider.create(messages, functions)
-    this.newMessage({from, to, content})
+    this.newMessage({...route, content})
 
     return content
   }
@@ -846,38 +828,6 @@ ${this.getHistory({to})
 
     if (config.provider) {
       return config.provider
-    }
-  }
-
-  /**
-   * Get the role content of a node based on its configuration.
-   * @param node
-   * @returns
-   */
-  private getRoleContent(node: string) {
-    const n = this.config[node]
-
-    if (n.role) {
-      return n.role
-    }
-
-    switch (n.type) {
-      case 'assistant':
-        return 'You are a helpful AI Assistant'
-      case 'manager':
-        return 'Group chat manager.'
-      default:
-        return `You are a helpful AI assistant.
-Solve tasks using your coding and language skills.
-In the following cases, suggest typescript code (in a typescript coding block) or shell script (in a sh coding block) for the user to execute.
-    1. When you need to collect info, use the code to output the info you need, for example, browse or search the web, download/read a file, print the content of a webpage or a file, get the current date/time, check the operating system. After sufficient info is printed and the task is ready to be solved based on your language skill, you can solve the task by yourself.
-    2. When you need to perform some task with code, use the code to perform the task and output the result. Finish the task smartly.
-Solve the task step by step if you need to. If a plan is not provided, explain your plan first. Be clear which step uses code, and which step uses your language skill.
-When using code, you must indicate the script type in the code block. The user cannot provide any other feedback or perform any other action beyond executing the code you suggest. The user can't modify your code. So do not suggest incomplete code which requires users to modify. Don't use a code block if it's not intended to be executed by the user.
-If you want the user to save the code in a file before executing it, put # filename: <filename> inside the code block as the first line. Don't include multiple code blocks in one response. Do not ask users to copy and paste the result. Instead, use 'print' function for the output when relevant. Check the execution result returned by the user.
-If the result indicates there is an error, fix the error and output the code again. Suggest the full code instead of partial code or code changes. If the error can't be fixed or if the task is not solved even after the code is executed successfully, analyze the problem, revisit your assumption, collect additional info you need, and think of a different approach to try.
-When you find an answer, verify the answer carefully. Include verifiable evidence in your response if possible.
-Reply "TERMINATE" when everything is done.`
     }
   }
 

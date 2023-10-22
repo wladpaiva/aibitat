@@ -1,34 +1,14 @@
 This project is a fork from the original
 [autogen](https://github.com/microsoft/autogen) but done in TypeScript.
 
-# AIbitat - Multi-Agent Conversation framework
+# AIbitat - Slack but for AI agents
 
-AIbitat enables the next-gen LLM applications with a generic multi-agent
-conversation framework. It offers customizable and conversable agents that
-integrate LLMs, tools, and humans. By automating chat among multiple capable
-agents, one can easily make them collectively perform tasks autonomously or with
-human feedback, including tasks that require using tools via code.
+AIbitat is a stateless framework designed to enable interaction between multiple
+agents while allowing human participation.
 
-I took a sightly different approach to the original project. Agents are now
-provider agnostic and can be used with any provider that implements the
-`AIProvider` interface. Also, it is stateless and can be used in a serverless
-environment.
-
-By default, aibitat uses **OpenAI** and **GPT-3.5-TURBO** as the provider for
-the conversation and **GPT-4** for predicting the next agent to speak but you
-can change it by passing `provider` and `model` to the `AIbitat` constructor or
-by setting them on the specific node config.
-
-### Features
-
-- **Multi-agent conversations:** AIbitat agents can communicate with each other
-  to solve tasks. This allows for more complex and sophisticated applications
-  than would be possible with a single LLM.
-- **Customization:** AIbitat agents can be customized to meet the specific needs
-  of an application. This includes the ability to choose the LLMs to use, the
-  types of human input to allow, and the tools to employ.
-- **Human participation:** AIbitat seamlessly allows human participation. This
-  means that humans can provide input and feedback to the agents as needed.
+Think of it as Slack but for AI agents. Create agents, add them to channels and
+let them chat with each other. You can also add intractable agents to channels
+and let them participate in the conversation.
 
 ## Usage
 
@@ -53,21 +33,19 @@ Then create a file called `index.ts` and add the following:
 import {AIbitat} from 'aibitat'
 import {cli} from 'aibitat/plugins'
 
-const aibitat = new AIbitat({
-  nodes: {
-    team: ['math', 'reviewer', 'client'],
-  },
-  config: {
-    client: {
-      type: 'assistant',
-      interrupt: 'NEVER',
-      role: 'You are a human assistant. Reply "TERMINATE" in when there is a correct answer.',
-    },
-    team: {type: 'manager'},
-    math: {type: 'agent', role: 'You do the math.'},
-    reviewer: {type: 'agent', role: 'You check to see if its correct'},
-  },
-}).use(cli())
+const aibitat = new AIbitat()
+  .use(cli())
+  .agent('client', {
+    interrupt: 'ALWAYS',
+  })
+  .agent('mathematician', {
+    role: `You are a mathematician and only solve math problems from client`,
+  })
+  .agent('reviewer', {
+    role: `You are a peer-reviewer and you do not solve math problems. 
+    Check the result from mathematician and then confirm. Just confirm, no talk.`,
+  })
+  .channel('management', ['mathematician', 'reviewer', 'client'])
 
 await aibitat.start({
   from: 'client',
@@ -84,66 +62,77 @@ bun run index.ts
 
 ## Roadmap
 
-- [x] **Automated reply with loop prevention.** Chats are kept alive until the
-      assistant interrupts the conversation.
-- [x] **Group chats.** Agents chat with multiple other agents at the same time
-      as if they were in a slack channel. The next agent to reply is the most
-      likely to reply based on the conversation.
-- [x] **Function execution.** Agents can execute functions and return the result
-      to the conversation.
-- [ ] **Cache**. Store conversation history in a cache to improve performance
-      and reduce the number of API calls.
-- [x] **Error handling.** Handle API errors gracefully.
-- [ ] **Code execution.** Agents can execute code and return the result to the
-      conversation.
+| Feature            | What it does                                           | Status |
+| ------------------ | ------------------------------------------------------ | ------ |
+| Direct messages    | Agents talk directly with each other.                  | ✅     |
+| Feedback           | Keep chats going until the agent interrupts the chat.  | ✅     |
+| Channels           | Agents talk with many others, like in a Slack channel. | ✅     |
+| Error handling     | Manage mistakes smoothly without crashing.             | ✅     |
+| Function execution | Agents can execute tasks and understand the results.   | ✅     |
+| Cache              | Save chat history to work faster and make fewer calls. | 🕝     |
+| Code execution     | Agents can run code and share the results.             | 🕝     |
 
 ### Providers
 
-- [ ] Anthropic
-- [ ] Cohere
-- [ ] Fireworks.ai
-- [ ] Hugging Face
-- [x] OpenAI
-- [ ] Replicate
+| Provider     | Status |
+| ------------ | ------ |
+| OpenAI       | ✅     |
+| Anthropic    | 🕝     |
+| Cohere       | 🕝     |
+| Fireworks.ai | 🕝     |
+| Hugging Face | 🕝     |
+| Replicate    | 🕝     |
 
 ## Documentation
 
-Nodes are the agents that will be used in the conversation and how they connect
-to each other. The `config` object is used to configure each node.
+Some terms used in this documentation:
 
-- `type`: `agent`, `assistant` or `manager`. Agents and managers never interrupt
-  conversations by default while assistant always does. Managers don't reply to
-  messages. They are used to group other agents.
 - `interrupt`: `NEVER`, `ALWAYS`. When `NEVER`, the agent will never interrupt
   the conversation. When `ALWAYS`, the agent will always interrupt the
   conversation. (Note: any of them can interrupt the conversation if they reply
-  "INTERRUPT")
+  "INTERRUPT" or terminate the chat when replying "TERMINATE".)
 - `role`: The role of the agent. It is used to describe the role the agent will
   perform in the chat.
 - `maxRounds`: The maximum number of chats an agent or a group will reply to the
   conversation. It is used to prevent loops.
 
-### Listening to events
+### `new AIbitat(config)`
 
-You can listen to events using the `on` method:
+Creates a new AIbitat instance. The `config` object can be used to configure the
+instance. By default, aibitat uses **OpenAI** and **GPT-3.5-TURBO** as the
+provider for the conversation and **GPT-4** for predicting the next agent to
+speak. You can change it by passing `provider` and `model` to the `AIbitat`
+constructor or by setting them on the specific agent/channel config. Default
+config:
 
-```ts
-aibitat.onMessage(({from, to, content}) => console.log(`${from}: ${content}`))
+```js
+{
+  providers: 'openai',
+  model: 'gpt-3.5-turbo',
+  interrupt: 'NEVER',
+  maxRounds: 100,
+  chats: [
+    // {
+    //   from: '🧑',
+    //   to: '🤖',
+    //   content: `Talk about something`,
+    //   state: 'success',
+    // },
+  ],
+}
 ```
 
-The following events are available:
+### `.agent(name, config)`
 
-- `onStart`: Called when the chat starts.
-- `onError`: Called when there's a known error (see `src/error.ts`). To retry,
-  call `.retry()`.
-- `onMessage`: Called when a message is added to the chat history.
-- `onTerminate`: Called when the conversation is terminated. Generally means
-  there is nothing else to do and a new conversation should be started.
-- `onInterrupt`: Called when the conversation is interrupted by an agent.
-  Generally means the agent has a question or needs help. The conversation can
-  be resumed by calling `.continue(feedback)`.
+Creates a new agent. The `config` object can be used to configure the agent. By
+default, agents use the `interrupt` from the `AIbitat` config.
 
-### Functions
+### `.channel(name, agents, config)`
+
+Creates a new channel. The `config` object can be used to configure the channel.
+By default, `maxRounds` is set to `100`.
+
+### `.function(config)`
 
 Functions are used to execute code and return the result to the conversation. To
 use them, add them to the `function` object and add it to the `functions`
@@ -151,14 +140,7 @@ property to the node config:
 
 ```ts
 const aibitat = new AIbitat({
-  config: {
-    client: {
-      type: 'assistant',
-      interrupt: 'NEVER',
-    },
-    reviewer: {type: 'agent', functions: ['doSomething']},
-  },
-  }
+  ...
 }).function({
   name: 'doSomething',
   description: 'Let me do something for you.',
@@ -174,7 +156,7 @@ const aibitat = new AIbitat({
 
 The results will then be sent to the provider and returned to the conversation.
 
-### Plugins
+### `.use(plugin)`
 
 Plugins are used to extend the functionality of AIbitat. They can be used to add
 new features or to integrate with other services. You can create your own
@@ -210,6 +192,26 @@ export function myPlugin(): AIbitatPlugin {
   }
 }
 ```
+
+### Listening to events
+
+You can listen to events using the `on` method:
+
+```ts
+aibitat.onMessage(({from, to, content}) => console.log(`${from}: ${content}`))
+```
+
+The following events are available:
+
+- `onStart`: Called when the chat starts.
+- `onError`: Called when there's a known error (see `src/error.ts`). To retry,
+  call `.retry()`.
+- `onMessage`: Called when a message is added to the chat history.
+- `onTerminate`: Called when the conversation is terminated. Generally means
+  there is nothing else to do and a new conversation should be started.
+- `onInterrupt`: Called when the conversation is interrupted by an agent.
+  Generally means the agent has a question or needs help. The conversation can
+  be resumed by calling `.continue(feedback)`.
 
 ## Contributing
 
