@@ -3,6 +3,9 @@ import path from 'path'
 
 import {AIbitatPlugin} from '..'
 
+/**
+ * Plugin to save chat history to a json file
+ */
 export function fileHistory({
   filename = `history/chat-history-${new Date().toISOString()}.json`,
 }: {
