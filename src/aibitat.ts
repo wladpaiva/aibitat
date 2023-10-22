@@ -173,7 +173,7 @@ export type FunctionDefinition = {
 export class AIbitat {
   private emitter = new EventEmitter()
 
-  private defaultProvider
+  private defaultProvider: ProviderConfig
   private defaultInterrupt
   private maxRounds
   private _chats
@@ -194,10 +194,10 @@ export class AIbitat {
     this.defaultInterrupt = interrupt
     this.maxRounds = maxRounds
 
-    this.defaultProvider = this.getProviderForConfig({
+    this.defaultProvider = {
       provider,
       ...rest,
-    })!
+    }
   }
 
   /**
@@ -285,6 +285,8 @@ export class AIbitat {
       throw new Error(`Channel configuration "${channel}" not found`)
     }
     return {
+      provider: 'openai' as const,
+      model: 'gpt-4' as const,
       maxRounds: 10,
       role: 'Group chat manager.',
       ...config,
@@ -606,11 +608,7 @@ export class AIbitat {
     // get the provider that will be used for the manager
     // if the manager has a provider, use that otherwise
     // use the GPT-4 because it has a better reasoning
-    const nodeProvider = this.getProviderForConfig(channelConfig)
-    const provider =
-      nodeProvider ||
-      this.getProviderForConfig({provider: 'openai', model: 'gpt-4'})!
-
+    const provider = this.getProviderForConfig(channelConfig)
     const history = this.getHistory({to: channel})
 
     // build the messages to send to the provider
@@ -704,8 +702,7 @@ ${this.getHistory({to: route.to})
       ?.map(name => this.functions.get(name))
       .filter(a => !!a) as FunctionDefinition[] | undefined
 
-    const nodeProvider = this.getProviderForConfig(fromConfig)
-    const provider = nodeProvider || this.defaultProvider
+    const provider = this.getProviderForConfig(fromConfig)
 
     // get the chat completion
     const content = await provider.create(messages, functions)
@@ -814,20 +811,21 @@ ${this.getHistory({to: route.to})
    * @param config The provider configuration.
    */
   private getProviderForConfig(config: ProviderConfig) {
-    if (typeof config.provider === 'string') {
-      switch (config.provider) {
-        case 'openai':
-          return new OpenAIProvider({model: config.model})
-
-        default:
-          throw new Error(
-            `Unknown provider: ${config.provider}. Please use "openai"`,
-          )
-      }
+    const x = {
+      ...this.defaultProvider,
+      ...config,
     }
 
-    if (config.provider) {
-      return config.provider
+    if (typeof x.provider === 'object') {
+      return x.provider
+    }
+
+    switch (x.provider) {
+      case 'openai':
+        return new OpenAIProvider({model: x.model})
+
+      default:
+        throw new Error(`Unknown provider: ${x.provider}. Please use "openai"`)
     }
   }
 

@@ -231,6 +231,7 @@ export class OpenAIProvider extends AIProvider<OpenAI> {
     call: OpenAI.Chat.ChatCompletionMessage.FunctionCall,
   ) {
     const funcToCall = functions.find(f => f.name === call.name)
+    log(`calling function "${call.name}" with arguments: `, call.arguments)
     if (!funcToCall) {
       throw new Error(`Function '${call.name}' not found`)
     }
@@ -245,7 +246,6 @@ export class OpenAIProvider extends AIProvider<OpenAI> {
       )
     }
 
-    log('calling function: ', funcToCall.name, 'with arguments: ', json)
     return await funcToCall.handler(json)
   }
 }
