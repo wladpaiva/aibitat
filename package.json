@@ -1,6 +1,6 @@
 {
   "name": "aibitat",
-  "version": "0.0.1-beta.4",
+  "version": "0.0.1",
   "description": "An extensible, stateless and customizable framework for multi-agents conversation",
   "license": "MIT",
   "repository": {
