@@ -43,11 +43,18 @@ function cli({
       })
 
       aibitat.onMessage(async message => {
-        await Promise.all(printing)
-        printing.push(cli.print(message, simulateStream))
+        const next = new Promise<void>(async resolve => {
+          await Promise.all(printing)
+          await cli.print(message, simulateStream)
+          resolve()
+        })
+        printing.push(next)
       })
 
-      aibitat.onTerminate(() => console.timeEnd('🚀 chat finished'))
+      aibitat.onTerminate(async () => {
+        await Promise.all(printing)
+        console.timeEnd('🚀 chat finished')
+      })
 
       aibitat.onInterrupt(async node => {
         await Promise.all(printing)
