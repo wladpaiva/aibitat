@@ -143,7 +143,8 @@ export function experimental_webBrowsing({}: {} = {}) {
 
       aibitat.function({
         name: 'web-browsing',
-        description: 'Searches the internet for a given query.',
+        description:
+          'Searches for a given query online or navigate to a given url.',
         parameters: {
           $schema: 'http://json-schema.org/draft-07/schema#',
           type: 'object',

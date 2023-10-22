@@ -5,21 +5,17 @@ export const aibitat = new AIbitat()
   .use(cli())
   .use(experimental_webBrowsing())
   .use(fileHistory())
-  .agent('client', {
-    role: `You are a human assistant. Your job is to answer relevant question about the work. 
-      Reply "TERMINATE" when the-strategist and the-researcher stop suggesting changes.`,
-  })
+  .agent('client', {})
   .agent('the-researcher', {
-    role: `You are a content Researcher. You conduct thorough research on the chosen topic. 
-      Collect data, facts, and statistics. Analyze competitor blogs for insights. 
-      Provide accurate and up-to-date information that supports the blog post's content.`,
     functions: ['web-browsing'],
+    model: 'gpt-4',
+    role: `You are a researcher. Your job is to research on the internet about the topic.`,
   })
 
 if (import.meta.main) {
   await aibitat.start({
     from: 'client',
     to: 'the-researcher',
-    content: `Write a blog post about in Brazilian Portuguese to be posted on Medium.`,
+    content: `Write a blog post about the latest news in AI in Brazilian Portuguese to be posted on Medium.`,
   })
 }
