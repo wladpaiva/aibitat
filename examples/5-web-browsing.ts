@@ -1,5 +1,5 @@
 import {AIbitat} from '../src'
-import {cli, experimental_webBrowsing} from '../src/plugins'
+import {cli, experimental_webBrowsing, fileHistory} from '../src/plugins'
 
 const aibitat = new AIbitat({
   nodes: {},
@@ -20,9 +20,10 @@ const aibitat = new AIbitat({
 })
   .use(cli())
   .use(experimental_webBrowsing())
+  .use(fileHistory())
 
 await aibitat.start({
   from: 'client',
-  to: '#content-creators',
+  to: 'the-researcher',
   content: `Write a blog post about in Brazilian Portuguese to be posted on Medium.`,
 })

@@ -1,0 +1,5 @@
+---
+'aibitat': patch
+---
+
+`fileHistory` plugin
