@@ -18,6 +18,12 @@ You can install the package:
 
 ```bash
 # to install bun go to https://bun.sh and follow the instructions
+# then run to start a new project:
+mkdir my-project
+cd my-project
+bun init
+
+# then install aibitat
 bun install aibitat
 ```
 
