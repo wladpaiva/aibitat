@@ -241,8 +241,8 @@ export class OpenAIProvider extends AIProvider<OpenAI> {
     try {
       json = JSON.parse(call.arguments)
     } catch (error) {
-      throw new Error(
-        `Model created an invalid JSON: '${call.arguments}' for function '${call.name}'`,
+      return Promise.resolve(
+        `Invalid JSON parameters: ${(error as Error).message}`,
       )
     }
 
