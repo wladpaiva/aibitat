@@ -1,5 +1,15 @@
 # AIbitat
 
+## 0.0.2
+
+### Patch Changes
+
+- aed887d: Fix an issue where the default model wasnt getting replaced when
+  specifying on specific agent
+- 2250784: Fix summarization bug on the `web-browsing` function
+- 355026f: fix bug where it would thrown errors when model provided wrong JSON
+- fee89ee: add cli for team builder
+
 ## 0.0.1
 
 ### Patch Changes
