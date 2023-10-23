@@ -53,7 +53,7 @@ async function search(
  * @param url
  * @returns
  */
-async function scrape(url: string) {
+export async function scrape(url: string) {
   console.log('🔥 Scraping website...', url)
 
   const headers = {
@@ -99,10 +99,9 @@ async function scrape(url: string) {
  * @param content The content to summarize.
  * @returns The summarized content.
  */
-async function summarize(content: string): Promise<string> {
+export async function summarize(content: string): Promise<string> {
   const llm = new ChatOpenAI({
     temperature: 0,
-    // openAIApiKey
     modelName: 'gpt-3.5-turbo-16k-0613',
   })
 
@@ -118,21 +117,24 @@ async function summarize(content: string): Promise<string> {
     "{text}"
     SUMMARY:
     `
+
   const mapPromptTemplate = new PromptTemplate({
     template: mapPrompt,
     inputVariables: ['text'],
   })
 
-  const summaryChain = loadSummarizationChain(llm, {
+  // This convenience function creates a document chain prompted to summarize a set of documents.
+  const chain = loadSummarizationChain(llm, {
     type: 'map_reduce',
     combinePrompt: mapPromptTemplate,
     combineMapPrompt: mapPromptTemplate,
     verbose: true,
   })
+  const res = await chain.call({
+    input_documents: docs,
+  })
 
-  const output = await summaryChain.run({inputDocuments: docs})
-
-  return output
+  return res.text
 }
 
 export function experimental_webBrowsing({}: {} = {}) {
