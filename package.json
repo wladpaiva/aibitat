@@ -11,6 +11,7 @@
     "name": "Wlad Paiva",
     "email": "desenvolvedormg@gmail.com"
   },
+  "bin": "src/cli.ts",
   "module": "dist/index.js",
   "types": "src/index.ts",
   "exports": {
@@ -29,9 +30,7 @@
   ],
   "type": "module",
   "scripts": {
-    "build": "bun run build:package && bun run build:plugins",
-    "build:package": "bun build ./src/index.ts --outdir=./dist",
-    "build:plugins": "bun build ./src/plugins/index.ts --target node --outdir=./dist/plugins",
+    "build": "bun run build.ts",
     "format": "prettier --write .",
     "prepare": "is-ci || husky install",
     "typecheck": "tsc --noEmit",
