@@ -43,9 +43,10 @@ const aibitat = new AIbitat()
   .use(cli())
   .agent('client', {
     interrupt: 'ALWAYS',
+    role: 'You are a human assistant. Reply "TERMINATE" when there is a correct answer or there`s no answer to the question.',
   })
   .agent('mathematician', {
-    role: `You are a Mathematician and only solve math problems from client`,
+    role: `You are a Mathematician and only solve math problems from @client`,
   })
   .agent('reviewer', {
     role: `You are a Peer-Reviewer and you do not solve math problems. 
@@ -71,7 +72,7 @@ bun run index.ts
 | Feature            | What it does                                           | Status |
 | ------------------ | ------------------------------------------------------ | ------ |
 | Direct messages    | Agents talk directly with each other.                  | ✅     |
-| Feedback           | Keep chats going until the agent interrupts the chat.  | ✅     |
+| Feedback           | Keep chat alive until some agent interrupts the chat.  | ✅     |
 | Channels           | Agents talk with many others, like in a Slack channel. | ✅     |
 | Error handling     | Manage mistakes smoothly without crashing.             | ✅     |
 | Function execution | Agents can execute tasks and understand the results.   | ✅     |
@@ -141,23 +142,23 @@ By default, `maxRounds` is set to `100`.
 ### `.function(config)`
 
 Functions are used to execute code and return the result to the conversation. To
-use them, add them to the `function` object and add it to the `functions`
-property to the node config:
+use it, call the `function` method passing the definitions for the function and
+add its name to the `functions` property to the node config:
 
 ```ts
-const aibitat = new AIbitat({
-  ...
-}).function({
-  name: 'doSomething',
-  description: 'Let me do something for you.',
-  parameters: {
-    type: 'object',
-    properties: {},
-  },
-  async handler() {
-    return '...'
-  },
-})
+const aibitat = new AIbitat()
+  .agent('...', {functions: ['doSomething']})
+  .function({
+    name: 'doSomething',
+    description: 'Let me do something for you.',
+    parameters: {
+      type: 'object',
+      properties: {},
+    },
+    async handler() {
+      return '...'
+    },
+  })
 ```
 
 The results will then be sent to the provider and returned to the conversation.
@@ -165,8 +166,8 @@ The results will then be sent to the provider and returned to the conversation.
 ### `.use(plugin)`
 
 Plugins are used to extend the functionality of AIbitat. They can be used to add
-new features or to integrate with other services. You can create your own
-plugins by implementing the `AIbitatPlugin` interface.
+new features or to integrate with other services. You can create your own plugin
+by implementing the `AIbitatPlugin` interface.
 
 To use a plugin, call the `use` method:
 
@@ -174,9 +175,7 @@ To use a plugin, call the `use` method:
 ...
 import {cli} from 'aibitat/plugins'
 
-const aibitat = new AIbitat({
-  ...
-}).use(cli())
+const aibitat = new AIbitat().use(cli())
 ```
 
 You can also create your own plugin by implementing the `AIbitatPlugin`
