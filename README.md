@@ -1,7 +1,7 @@
 This project is a fork from the original
 [autogen](https://github.com/microsoft/autogen) but done in TypeScript.
 
-# AIbitat - Slack but for AI agents
+# AIbitat - Multi-Agent Framework
 
 AIbitat is a stateless framework designed to enable interaction between multiple
 agents while allowing human participation.
@@ -45,11 +45,11 @@ const aibitat = new AIbitat()
     interrupt: 'ALWAYS',
   })
   .agent('mathematician', {
-    role: `You are a mathematician and only solve math problems from client`,
+    role: `You are a Mathematician and only solve math problems from client`,
   })
   .agent('reviewer', {
-    role: `You are a peer-reviewer and you do not solve math problems. 
-    Check the result from mathematician and then confirm. Just confirm, no talk.`,
+    role: `You are a Peer-Reviewer and you do not solve math problems. 
+    Check the result from @mathematician and then confirm. Just confirm, no talk.`,
   })
   .channel('management', ['mathematician', 'reviewer', 'client'])
 
@@ -75,7 +75,7 @@ bun run index.ts
 | Channels           | Agents talk with many others, like in a Slack channel. | ✅     |
 | Error handling     | Manage mistakes smoothly without crashing.             | ✅     |
 | Function execution | Agents can execute tasks and understand the results.   | ✅     |
-| Cache              | Save chat history to work faster and make fewer calls. | 🕝     |
+| Cache              | Save chat history for faster and fewer API calls.      | 🕝     |
 | Code execution     | Agents can run code and share the results.             | 🕝     |
 
 ### Providers
