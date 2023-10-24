@@ -18,19 +18,21 @@ const aibitat = new AIbitat()
   .use(cli({simulateStream: false}))
   .use(experimental_webBrowsing())
   .agent('prompter', {
-    role: 'You are a human assistant. Your job is to answer relevant question about the work that @pm can`t answer. ',
+    interrupt: 'ALWAYS',
+    role: `You are a human assistant. Your job is to answer relevant question about the work that @pm can't answer. 
+    Reply "TERMINATE" when @pm and @developer are done.`,
   })
   .agent('pm', {
     role: `You are a Project Manager. Your job is to take a deep breath and think about the task "${task}". 
-    Name all the professionals and their roles involved to accomplish it. Include the objectives and tasks of 
-    each role as well as how they communicate to each other.`,
+    Name all the professionals and their roles involved to accomplish it including the objectives and tasks of 
+    each role as well as how they communicate with each other.`,
   })
   .agent('developer', {
     model: 'gpt-4',
     functions: ['web-browsing', 'write-code'],
     role: `You are a Typescript developer. Your job is to look up online how to implement AI agents using the AIbitat framework 
     and then translate the professionals and roles that @pm has given to be AI agents. Use top-level await and don't 
-    mention AIbitat in the professionals' roles.`,
+    mention AIbitat in the professionals' roles. Specify their job title in the beginning of their role.`,
   })
   .channel('self-replicating', ['pm', 'developer', 'prompter'])
   .function({
@@ -41,8 +43,8 @@ const aibitat = new AIbitat()
       properties: {
         filename: {
           type: 'string',
-          description:
-            'The name of the file. Preferably what the team does and the date. Include the extension.',
+          description: `The name of the file. Preferably what the team does and the date. In the format: "create-something-original".
+             Including the file extension.`,
         },
         code: {type: 'string', description: 'The code to write'},
       },
