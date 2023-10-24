@@ -3,8 +3,8 @@ This project is a fork from the original
 
 # AIbitat - Multi-Agent Conversation Framework
 
-AIbitat is a stateless framework designed to enable interaction between multiple
-agents while allowing human participation.
+AIbitat is a stateless & extensible framework designed to enable interaction
+between multiple agents while allowing human participation.
 
 Think of it as Slack but for AI agents. Create agents, add them to channels and
 let them chat with each other. You can also add intractable agents to channels
