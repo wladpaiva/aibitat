@@ -27,10 +27,10 @@ bun init
 bun install aibitat
 ```
 
-Create an `.env` file and add your `OPEN_AI_API_KEY`:
+Create an `.env` file and add your `OPENAI_API_KEY`:
 
 ```bash
-OPEN_AI_API_KEY=...
+OPENAI_API_KEY=...
 ```
 
 Then create a file called `index.ts` and add the following:
