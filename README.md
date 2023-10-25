@@ -77,7 +77,9 @@ bun run index.ts
 | Error handling     | Manage mistakes smoothly without crashing.             | ✅     |
 | Function execution | Agents can execute tasks and understand the results.   | ✅     |
 | Cache              | Save chat history for faster and fewer API calls.      | 🕝     |
+| RAG                | Blends retrieval & generative AI for better answers.   | 🕝     |
 | Code execution     | Agents can run code and share the results.             | 🕝     |
+| Cost limit         | Limit the number of interactions by cost.              | 🕝     |
 
 ### Providers
 
