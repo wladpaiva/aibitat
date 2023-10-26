@@ -74,7 +74,7 @@ bun run index.ts
 | Direct messages    | Agents talk directly with each other.                  | ✅     |
 | Feedback           | Keep chat alive until some agent interrupts the chat.  | ✅     |
 | Channels           | Agents talk with many others, like in a Slack channel. | ✅     |
-| Error handling     | Manage mistakes smoothly without crashing.             | ✅     |
+| Error handling     | Manage rate limits smoothly without crashing.          | ✅     |
 | Function execution | Agents can execute tasks and understand the results.   | ✅     |
 | Web browsing       | Navigate on the internet.                              | 🚧     |
 | Cache              | Save chat history for faster and fewer API calls.      | 🕝     |
