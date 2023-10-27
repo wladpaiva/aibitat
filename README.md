@@ -87,7 +87,7 @@ bun run index.ts
 | Provider     | Status |
 | ------------ | ------ |
 | OpenAI       | ✅     |
-| Anthropic    | 🕝     |
+| Anthropic    | ✅     |
 | Cohere       | 🕝     |
 | Fireworks.ai | 🕝     |
 | Hugging Face | 🕝     |
@@ -231,6 +231,8 @@ The following events are available:
   be resumed by calling `.continue(feedback)`.
 
 ## Contributing
+
+Copy the `.env.example` file to `.env` and add your keys/tokens in there.
 
 To install dependencies:
 

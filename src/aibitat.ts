@@ -5,7 +5,9 @@ import debug from 'debug'
 import {APIError} from './error.ts'
 import {
   AIProvider,
+  AnthropicProvider,
   OpenAIProvider,
+  type AnthropicModel,
   type OpenAIModel,
 } from './providers/index.ts'
 
@@ -15,11 +17,21 @@ const log = debug('autogen:chat-aibitat')
  * The provider config to use for the AI.
  */
 export type ProviderConfig =
+  // FIX: should only show Openai models when there's no provider
   | {
       /** The OpenAI API provider */
       provider?: 'openai'
       /** The model to use with the OpenAI */
       model?: OpenAIModel
+    }
+  | {
+      /** The custom AI provider */
+      provider: 'anthropic'
+      /**
+       * The model to use with the Anthropic API.
+       * @default 'claude-2'
+       */
+      model?: AnthropicModel
     }
   | {
       /** The custom AI provider */
@@ -286,7 +298,7 @@ export class AIbitat {
     }
     return {
       maxRounds: 10,
-      role: 'Group chat manager.',
+      role: '',
       ...config,
     }
   }
@@ -824,6 +836,8 @@ ${this.getHistory({to: route.to})
     switch (config.provider) {
       case 'openai':
         return new OpenAIProvider({model: config.model})
+      case 'anthropic':
+        return new AnthropicProvider({model: config.model})
 
       default:
         throw new Error(

@@ -23,7 +23,6 @@ import {
   ServerError,
   UnknownError,
 } from '../error.ts'
-import {Function, Message} from '../types.ts'
 import {AIProvider} from './ai-provider.ts'
 
 const log = debug('autogen:provider:openai')
@@ -98,7 +97,7 @@ export class OpenAIProvider extends AIProvider<OpenAI> {
    * @returns The completion.
    */
   async create(
-    messages: Message[],
+    messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[],
     functions?: FunctionDefinition[],
   ): Promise<string> {
     log(`calling 'openai.chat.completions.create' with model '${this.model}'`)
