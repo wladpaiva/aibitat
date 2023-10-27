@@ -1,5 +1,5 @@
-import {AIbitat} from 'aibitat'
-import {cli, experimental_webBrowsing, fileHistory} from 'aibitat/plugins'
+import {AIbitat} from '../src'
+import {cli, experimental_webBrowsing, fileHistory} from '../src/plugins'
 
 export const aibitat = new AIbitat({
   model: 'gpt-4',
