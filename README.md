@@ -232,6 +232,8 @@ The following events are available:
 
 ## Contributing
 
+Copy the `.env.example` file to `.env` and add your keys/tokens in there.
+
 To install dependencies:
 
 ```bash
