@@ -3,7 +3,10 @@ import * as cheerio from 'cheerio'
 import {AIbitat} from '../src'
 import {cli} from '../src/plugins'
 
-export const aibitat = new AIbitat()
+export const aibitat = new AIbitat({
+  provider: 'anthropic',
+  model: 'claude-2',
+})
   .use(cli())
   .function({
     name: 'aibitat-releases',
