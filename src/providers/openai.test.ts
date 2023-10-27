@@ -1,7 +1,7 @@
 import {beforeEach, describe, expect, mock, test} from 'bun:test'
 
 import {AuthorizationError} from '../error.ts'
-import {Message} from '../types.ts'
+import {Message} from './ai-provider.ts'
 import {OpenAIProvider} from './openai.ts'
 
 // NOTE: some tests are skipped because it requires a way to mock the http requests.

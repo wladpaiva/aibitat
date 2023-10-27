@@ -3,8 +3,7 @@ import OpenAI from 'openai'
 
 import {AIbitat, type AIbitatProps} from './aibitat.ts'
 import {RateLimitError} from './error.ts'
-import {AIProvider} from './providers/index.ts'
-import {type Message} from './types.ts'
+import {AIProvider, Message} from './providers/index.ts'
 
 // HACK: Mock the AI provider.
 // This is still needed because Bun doesn't support mocking modules yet.

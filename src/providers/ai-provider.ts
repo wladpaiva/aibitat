@@ -1,5 +1,18 @@
 import {FunctionDefinition} from '../aibitat.ts'
-import {Message} from '../types.ts'
+
+export type Role = 'system' | 'user' | 'assistant'
+
+export type Message = {
+  /**
+   * The contents of the message.
+   */
+  content: string
+
+  /**
+   * The role of the messages author. One of `system`, `user` or `assistant`
+   */
+  role: Role
+}
 
 /**
  * A service that provides an AI client to create a completion.
