@@ -1,5 +1,13 @@
 # AIbitat
 
+## 0.0.3
+
+### Patch Changes
+
+- 4eccd42: Added Anthropic Provider 🎊
+- 19ebcc4: Fix a bug where the provider given to AIbitat was not replacing the
+  default provider for channels
+
 ## 0.0.2
 
 ### Patch Changes
