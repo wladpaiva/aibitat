@@ -54,11 +54,15 @@ const aibitat = new AIbitat()
   })
   .channel('management', ['mathematician', 'reviewer', 'client'])
 
+// aibitat.onMessage(console.log)
+
 await aibitat.start({
   from: 'client',
   to: 'management',
   content: 'How much is 2 + 2?',
 })
+
+console.log(aibitat.chats)
 ```
 
 Then run:
