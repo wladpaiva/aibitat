@@ -87,7 +87,7 @@ bun run index.ts
 | Provider     | Status |
 | ------------ | ------ |
 | OpenAI       | ✅     |
-| Anthropic    | 🕝     |
+| Anthropic    | ✅     |
 | Cohere       | 🕝     |
 | Fireworks.ai | 🕝     |
 | Hugging Face | 🕝     |
