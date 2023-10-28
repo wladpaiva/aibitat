@@ -8,40 +8,32 @@ import {
   AnthropicProvider,
   OpenAIProvider,
   type AnthropicModel,
+  type Message as MessageAI,
   type OpenAIModel,
 } from './providers/index.ts'
 
 const log = debug('autogen:chat-aibitat')
 
-/**
- * The provider config to use for the AI.
- */
-export type ProviderConfig =
-  // FIX: should only show Openai models when there's no provider
-  | {
-      /** The OpenAI API provider */
+type Provider = 'openai' | 'anthropic' | AIProvider<unknown>
+
+export type ProviderConfig<T extends Provider = 'openai'> = T extends 'openai'
+  ? {
       provider?: 'openai'
-      /** The model to use with the OpenAI */
       model?: OpenAIModel
     }
-  | {
-      /** The custom AI provider */
+  : T extends 'anthropic'
+  ? {
       provider: 'anthropic'
-      /**
-       * The model to use with the Anthropic API.
-       * @default 'claude-2'
-       */
       model?: AnthropicModel
     }
-  | {
-      /** The custom AI provider */
+  : {
       provider: AIProvider<unknown>
     }
 
 /**
  * Base config for AIbitat agents.
  */
-export type AgentConfig = ProviderConfig & {
+export type AgentConfig<T extends Provider = 'openai'> = ProviderConfig<T> & {
   /** The role this agent will play in the conversation */
   role?: string
 
@@ -61,7 +53,7 @@ export type AgentConfig = ProviderConfig & {
 /**
  * The channel configuration for the AIbitat.
  */
-export type ChannelConfig = ProviderConfig & {
+export type ChannelConfig<T extends Provider = 'openai'> = ProviderConfig<T> & {
   /** The role this agent will play in the conversation */
   role?: string
 
@@ -83,27 +75,108 @@ type Route = {
 /**
  * A chat message.
  */
-type Message = Route & {
-  content: string
-}
+type Message = Prettify<
+  Route & {
+    content: string
+  }
+>
+
+// Prettify a type
+type Prettify<T> = {
+  [K in keyof T]: T[K]
+} & {}
+
+// /**
+//  * - `thinking`: waiting for the llm to think of a response
+//  * - `executing`: executing a function
+//  * - `interrupted`: interrupted by a node
+//  * - `failed`: failed to think or execute
+//  * - `replied`: llm replied with a message
+//  * - `seeded`: a response was seeded, meaning that the llm will not think of a response
+//  */
+// type State =
+//   | 'thinking'
+//   | 'executing'
+//   | 'interrupted'
+//   | 'failed'
+//   | 'replied'
+//   | 'seeded'
+
+// type xxx<T extends State> = T extends 'failed' | 'seeded'
+//   ? {
+//       content: string
+//       state: T
+//     }
+//   : T extends 'success'
+//   ? {
+//       content: string
+//       state: T
+//       time: number
+//     }
+//   : {
+//       state: T
+//     }
+
+type SeedChat = Prettify<
+  Route & {
+    state: 'seeded'
+    content: string
+  }
+>
+
+type ReplyChat = Prettify<
+  Route & {
+    state: 'replied'
+    content: string
+    /** Time it took for the LLM to reply */
+    time: number
+  }
+>
+
+type FailedChat = Prettify<
+  Route & {
+    state: 'failed'
+    content: string
+  }
+>
+
+type ThinkingChat = Prettify<
+  Route & {
+    state: 'thinking'
+  }
+>
+
+type InterruptedChat = Prettify<
+  Route & {
+    state: 'interrupted'
+  }
+>
 
 /**
- * A chat message that is saved in the history.
+ * A state of a chat message that is saved in the history.
+ *
+ * - `thinking`: waiting for the llm to think of a response
+ * - `interrupted`: interrupted by a node
+ * - `failed`: failed to think or execute
+ * - `replied`: llm replied with a message
+ * - `seeded`: a response was seeded, meaning that the llm will not think of a response
  */
-export type Chat = Omit<Message, 'content'> & {
-  content?: string
-  state: 'success' | 'interrupt' | 'error' | 'loading'
-}
+export type Chat =
+  | SeedChat
+  | ReplyChat
+  | FailedChat
+  | ThinkingChat
+  | InterruptedChat
 
 /**
  * Chat history.
  */
-type History = Array<Chat>
+export type History = Array<Chat>
 
 /**
  * AIbitat props.
  */
-export type AIbitatProps = ProviderConfig & {
+export type AIbitatProps<T extends Provider> = ProviderConfig<T> & {
   /**
    * Chat history between all agents.
    * @default []
@@ -126,7 +199,7 @@ export type AIbitatProps = ProviderConfig & {
 /**
  * Plugin to use with the aibitat
  */
-export type AIbitatPlugin = {
+export type AIbitatPlugin<T extends Provider> = {
   /**
    * The name of the plugin. This will be used to identify the plugin.
    * If the plugin is already installed, it will replace the old plugin.
@@ -136,7 +209,7 @@ export type AIbitatPlugin = {
   /**
    * The setup function to be called when the plugin is installed.
    */
-  setup: (aibitat: AIbitat) => void
+  setup: (aibitat: AIbitat<T>) => void
 }
 
 /**
@@ -182,19 +255,19 @@ export type FunctionDefinition = {
  *
  * Guiding the chat through a graph of agents.
  */
-export class AIbitat {
+export class AIbitat<T extends Provider> {
   private emitter = new EventEmitter()
 
-  private defaultProvider: ProviderConfig
+  private defaultProvider: ProviderConfig<any>
   private defaultInterrupt
   private maxRounds
   private _chats
 
-  private agents = new Map<string, AgentConfig>()
-  private channels = new Map<string, {members: string[]} & ChannelConfig>()
+  private agents = new Map<string, AgentConfig<any>>()
+  private channels = new Map<string, {members: string[]} & ChannelConfig<any>>()
   private functions = new Map<string, FunctionDefinition>()
 
-  constructor(props: AIbitatProps = {}) {
+  constructor(props: AIbitatProps<T> = {} as AIbitatProps<T>) {
     const {
       chats = [],
       interrupt = 'NEVER',
@@ -222,7 +295,7 @@ export class AIbitat {
   /**
    * Install a plugin.
    */
-  use(plugin: AIbitatPlugin) {
+  use<T extends Provider>(plugin: AIbitatPlugin<T>) {
     plugin.setup(this)
     return this
   }
@@ -234,7 +307,10 @@ export class AIbitat {
    * @param config
    * @returns
    */
-  public agent(name: string, config: AgentConfig = {}) {
+  public agent<T extends Provider>(
+    name: string,
+    config: AgentConfig<T> = {} as AgentConfig<T>,
+  ) {
     this.agents.set(name, config)
     return this
   }
@@ -247,7 +323,11 @@ export class AIbitat {
    * @param config
    * @returns
    */
-  public channel(name: string, members: string[], config: ChannelConfig = {}) {
+  public channel<T extends Provider>(
+    name: string,
+    members: string[],
+    config: ChannelConfig<T> = {} as ChannelConfig<T>,
+  ) {
     this.channels.set(name, {
       members,
       ...config,
@@ -352,10 +432,13 @@ export class AIbitat {
    * @returns
    */
   private interrupt(route: Route) {
-    this._chats.push({
+    const chat: InterruptedChat = {
       ...route,
-      state: 'interrupt',
-    })
+      state: 'interrupted',
+    }
+
+    this._chats = [...this._chats, chat]
+
     this.emitter.emit('interrupt', route, this)
   }
 
@@ -372,19 +455,68 @@ export class AIbitat {
   }
 
   /**
-   * Register a new successful message in the chat history.
-   * This will trigger the `onMessage` event.
+   * Add a seed message to the chat history and trigger the `onMessage` event.
    *
    * @param message
    */
-  private newMessage(message: Message) {
-    const chat = {
+  private seed(message: Prettify<Omit<SeedChat, 'state'>>) {
+    const chat: SeedChat = {
       ...message,
-      state: 'success' as const,
+      state: 'seeded',
+    }
+    this._chats = [...this._chats, chat]
+    this.emitter.emit('message', chat, this)
+  }
+
+  /**
+   *
+   * @param message
+   */
+  private replied(message: Prettify<Omit<ReplyChat, 'state'>>) {
+    // remove the thinking message
+    const everythingElse = this._chats.filter(
+      chat =>
+        !(
+          chat.to === message.to &&
+          chat.from === message.from &&
+          chat.state === 'thinking'
+        ),
+    )
+
+    const chat: ReplyChat = {
+      ...message,
+      state: 'replied',
     }
 
-    this._chats.push(chat)
+    this._chats = [...everythingElse, chat]
     this.emitter.emit('message', chat, this)
+  }
+
+  /**
+   * Triggered when an agent is thinking of a response.
+   *
+   * @param listener
+   * @returns
+   */
+  public onThinking(listener: (chat: Chat) => void) {
+    this.emitter.on('thinking', listener)
+    return this
+  }
+
+  /**
+   * Add a thinking message to the chat history and trigger the `onThinking` event.
+   * This is used when the LLM is thinking of a response.
+   *
+   * @param message
+   */
+
+  private setThinking(message: Prettify<Omit<ThinkingChat, 'state'>>) {
+    const chat: ThinkingChat = {
+      ...message,
+      state: 'thinking',
+    }
+    this._chats = [...this._chats, chat]
+    this.emitter.emit('thinking', chat, this)
   }
 
   /**
@@ -423,12 +555,22 @@ export class AIbitat {
    * @param message
    */
   private newError(route: Route, error: unknown) {
+    // remove the thinking message
+    const everythingElse = this._chats.filter(
+      chat =>
+        !(
+          chat.to === route.to &&
+          chat.from === route.from &&
+          chat.state === 'thinking'
+        ),
+    )
+
     const chat = {
       ...route,
       content: error instanceof Error ? error.message : String(error),
-      state: 'error' as const,
+      state: 'failed' as const,
     }
-    this._chats.push(chat)
+    this._chats = [...everythingElse, chat]
     this.emitter.emit('replyError', error, chat)
   }
 
@@ -438,7 +580,9 @@ export class AIbitat {
    * @param listener
    * @returns
    */
-  public onStart(listener: (chat: Chat, aibitat: AIbitat) => void) {
+  public onStart<T extends Provider>(
+    listener: (chat: Chat, aibitat: AIbitat<T>) => void,
+  ) {
     this.emitter.on('start', listener)
     return this
   }
@@ -456,8 +600,8 @@ export class AIbitat {
     )
 
     // register the message in the chat history
-    this.newMessage(message)
     this.emitter.emit('start', message, this)
+    this.seed(message)
 
     // ask the node to reply
     await this.chat({
@@ -723,8 +867,11 @@ ${this.getHistory({to: route.to})
     })
 
     // get the chat completion
+    this.setThinking(route)
+    const startTime = performance.now()
     const content = await provider.create(messages, functions)
-    this.newMessage({...route, content})
+    const time = performance.now() - startTime
+    this.replied({...route, content, time})
 
     return content
   }
@@ -739,7 +886,7 @@ ${this.getHistory({to: route.to})
    */
   public async continue(feedback?: string | null) {
     const lastChat = this._chats.at(-1)
-    if (!lastChat || lastChat.state !== 'interrupt') {
+    if (!lastChat || lastChat.state !== 'interrupted') {
       throw new Error('No chat to continue')
     }
 
@@ -760,7 +907,7 @@ ${this.getHistory({to: route.to})
       }
 
       // register the message in the chat history
-      this.newMessage(message)
+      this.seed(message)
 
       // ask the node to reply
       await this.chat({
@@ -780,7 +927,7 @@ ${this.getHistory({to: route.to})
    */
   public async retry() {
     const lastChat = this._chats.at(-1)
-    if (!lastChat || lastChat.state !== 'error') {
+    if (!lastChat || lastChat.state !== 'failed') {
       throw new Error('No chat to retry')
     }
 
@@ -796,7 +943,7 @@ ${this.getHistory({to: route.to})
    */
   private getHistory({from, to}: {from?: string; to?: string}) {
     return this._chats.filter(chat => {
-      const isSuccess = chat.state === 'success'
+      const isSuccess = chat.state === 'seeded' || chat.state === 'replied'
 
       // return all chats to the node
       if (!from) {
@@ -814,12 +961,10 @@ ${this.getHistory({to: route.to})
       const mutual = hasSent || hasReceived
 
       return isSuccess && mutual
-    }) as {
-      from: string
-      to: string
+    }) as (Route & {
       content: string
-      state: 'success'
-    }[]
+      state: 'seeded' | 'replied'
+    })[]
   }
 
   /**
@@ -828,7 +973,7 @@ ${this.getHistory({to: route.to})
    *
    * @param config The provider configuration.
    */
-  private getProviderForConfig(config: ProviderConfig) {
+  private getProviderForConfig<T extends Provider>(config: ProviderConfig<T>) {
     if (typeof config.provider === 'object') {
       return config.provider
     }

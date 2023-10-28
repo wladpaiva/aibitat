@@ -1,7 +1,7 @@
 This project is a fork from the original
 [autogen](https://github.com/microsoft/autogen) but done in TypeScript.
 
-# AIbitat - Multi-Agent Conversation Framework
+# AIbitat 🗯️🗯️💬 - Multi-Agent Conversation Framework
 
 AIbitat is a stateless & extensible framework designed to enable interaction
 between multiple agents while allowing human participation.

@@ -38,7 +38,9 @@ describe('direct message', () => {
       from: '🤖',
       to: '🧑',
       content: 'TERMINATE',
-      state: 'success',
+      state: 'replied',
+      // @ts-expect-error
+      time: expect.any(Number),
     })
   })
 
@@ -92,7 +94,8 @@ describe('direct message', () => {
           from: '🧑',
           to: '🤖',
           content: '2 + 2 = 4?',
-          state: 'success',
+          state: 'replied',
+          time: 2,
         },
       ],
     })
@@ -110,7 +113,8 @@ describe('direct message', () => {
       from: '🧑',
       to: '🤖',
       content: '2 + 2 = 4?',
-      state: 'success',
+      state: 'replied',
+      time: 2,
     })
   })
 
@@ -180,8 +184,9 @@ describe('direct message', () => {
     })
 
     expect(p).resolves.toBeTrue()
+    // @ts-expect-error
     expect(aibitat.chats[3].content).toBe('...')
-    expect(aibitat.chats[3].state).toBe('success')
+    expect(aibitat.chats[3].state).toBe('replied')
     expect(aibitat.chats).toHaveLength(5)
   })
 
@@ -211,6 +216,8 @@ describe('direct message', () => {
     expect(p).resolves.toBeTrue()
     expect(aibitat.chats[2].from).toBe('🧑')
     expect(aibitat.chats[2].to).toBe('🤖')
+    expect(aibitat.chats[2].state).toBe('seeded')
+    // @ts-expect-error
     expect(aibitat.chats[2].content).toBe('my feedback')
   })
 })
@@ -218,7 +225,7 @@ describe('direct message', () => {
 describe('as a group', () => {
   const members = ['🐶', '😸', '🐭']
 
-  let aibitat: AIbitat
+  let aibitat: AIbitat<any>
 
   beforeEach(() => {
     ai.create.mockImplementation(x => {
@@ -256,6 +263,26 @@ describe('as a group', () => {
 
     expect(aibitat.chats).toHaveLength(5)
   })
+})
+
+test('should be thinking while LLM generate responses', async () => {
+  const aibitat = new AIbitat({provider})
+    .agent('🧑', {interrupt: 'ALWAYS'})
+    .agent('🤖')
+
+  const callback = mock(() => {
+    expect(aibitat.chats).toHaveLength(2)
+    expect(aibitat.chats.at(-1)).toEqual({
+      from: '🤖',
+      to: '🧑',
+      state: 'thinking',
+    })
+  })
+  aibitat.onThinking(callback)
+
+  await aibitat.start(defaultStart)
+
+  expect(callback).toHaveBeenCalledTimes(1)
 })
 
 test.todo('should call a function', async () => {
@@ -339,7 +366,7 @@ describe('when errors happen', () => {
       from: '🤖',
       to: '🧑',
       content: 'known error!!!',
-      state: 'error',
+      state: 'failed',
     })
   })
 
@@ -382,7 +409,7 @@ describe('when errors happen', () => {
       from: '🤖',
       to: '🧑',
       content: '401: Rate limit',
-      state: 'error',
+      state: 'failed',
     })
 
     await aibitat.retry()
@@ -393,7 +420,9 @@ describe('when errors happen', () => {
       from: '🤖',
       to: '🧑',
       content: 'TERMINATE',
-      state: 'success',
+      state: 'replied',
+      // @ts-expect-error
+      time: expect.any(Number),
     })
   })
 })

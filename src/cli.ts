@@ -15,7 +15,7 @@ const task = await input({
 })
 
 const aibitat = new AIbitat()
-  .use(cli({simulateStream: false}))
+  .use(cli())
   .use(experimental_webBrowsing())
   .agent('prompter', {
     interrupt: 'ALWAYS',
