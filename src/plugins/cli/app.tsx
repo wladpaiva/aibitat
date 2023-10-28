@@ -1,7 +1,7 @@
-import {Box, render, Text} from 'ink'
+import {Box, Text} from 'ink'
 import Spinner from 'ink-spinner'
 import prettyMilliseconds from 'pretty-ms'
-import React, {useEffect, useState} from 'react'
+import React from 'react'
 
 import {AIbitat, Chat} from '../..'
 import {AIbitatProvider} from './context'
@@ -13,14 +13,11 @@ function Message(chat: Chat) {
       <Box>
         <Box>
           <Text bold>{chat.from} </Text>
-          <Text dimColor>
-            (to {chat.to}
-            {chat.state === 'replied' && (
-              <Text dimColor> in {prettyMilliseconds(chat.time)}</Text>
-            )}
-            )
-          </Text>
-
+          <Text dimColor>(to {chat.to}</Text>
+          {chat.state === 'replied' && (
+            <Text dimColor> in {prettyMilliseconds(chat.time)}</Text>
+          )}
+          <Text dimColor>)</Text>
           <Text>:</Text>
         </Box>
       </Box>
