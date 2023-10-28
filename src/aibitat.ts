@@ -90,9 +90,9 @@ type Message = Route & {
 /**
  * A chat message that is saved in the history.
  */
-type Chat = Omit<Message, 'content'> & {
+export type Chat = Omit<Message, 'content'> & {
   content?: string
-  state: 'success' | 'interrupt' | 'error'
+  state: 'success' | 'interrupt' | 'error' | 'loading'
 }
 
 /**
