@@ -6,14 +6,21 @@ import {useAIbitat} from './context'
 function Cursor() {
   const [visible, setVisible] = useState(true)
 
-  React.useEffect(() => {
-    const id = setInterval(() => {
-      setVisible(visible => !visible)
-    }, 500)
-    return () => clearInterval(id)
-  }, [])
+  // BUG: too much re-rendering makes it flicker when looking for something that has been replied
+  // React.useEffect(() => {
+  //   const id = setInterval(() => {
+  //     setVisible(visible => !visible)
+  //   }, 500)
+  //   return () => clearInterval(id)
+  // }, [])
 
-  return visible ? <Text color="white">⎢</Text> : <Text> </Text>
+  return visible ? (
+    <Text color="white" backgroundColor="white">
+      {/* ⎢ */}{' '}
+    </Text>
+  ) : (
+    <Text> </Text>
+  )
 }
 
 export function Input() {
