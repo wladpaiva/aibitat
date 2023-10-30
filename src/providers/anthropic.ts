@@ -129,7 +129,7 @@ export class AnthropicProvider extends AIProvider<Anthropic> {
         prompt,
       })
 
-      const result = response.completion
+      const result = response.completion.trim()
 
       // Handle function calls if the model returns a function call
       if (result.includes('function_name') && functions) {
