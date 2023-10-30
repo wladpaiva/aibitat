@@ -130,7 +130,7 @@ config:
     //   from: '🧑',
     //   to: '🤖',
     //   content: `Talk about something`,
-    //   state: 'success',
+    //   state: 'replied',
     // },
   ],
 }
@@ -233,6 +233,10 @@ The following events are available:
 - `onInterrupt`: Called when the conversation is interrupted by an agent.
   Generally means the agent has a question or needs help. The conversation can
   be resumed by calling `.continue(feedback)`.
+- `onThinking`: Called when a message is sent to the provider. Generally means
+  the provider is thinking and the conversation is waiting for a response.
+  `thinking` status is added to the chat history and gets replaced by either
+  `replied` or `error`.
 
 ## Contributing
 
