@@ -31,9 +31,6 @@ export const aibitat = new AIbitat({
   .agent('🤖', {
     functions: ['aibitat-releases'],
   })
-  .onTerminate(() => {
-    console.log('Bye!')
-  })
 
 if (import.meta.main) {
   await aibitat.start({

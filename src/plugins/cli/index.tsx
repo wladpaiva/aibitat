@@ -14,10 +14,10 @@ function cli() {
       let startTime: number | undefined
       let finishTime: number | undefined
       let history: Chat[] = []
-      const w = render(<App aibitat={aibitat} history={history} />)
+      const app = render(<App aibitat={aibitat} history={history} />)
 
       const refresh = () => {
-        w.rerender(
+        app.rerender(
           <App
             aibitat={aibitat}
             history={aibitat.chats}
@@ -32,13 +32,11 @@ function cli() {
         refresh()
       })
       aibitat.onTerminate(() => {
-        console.log('🔥🔥🔥')
         finishTime = performance.now()
         refresh()
-
-        console.log('🔥🔥🔥')
       })
       aibitat.onThinking(refresh)
+      aibitat.onInterrupt(refresh)
       aibitat.onMessage(refresh)
     },
   } as AIbitatPlugin<any>

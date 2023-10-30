@@ -5,46 +5,45 @@ import React from 'react'
 
 import {AIbitat, Chat} from '../..'
 import {AIbitatProvider} from './context'
+import {Input} from './input.tsx'
 import {Retry} from './retry'
 
 function Message(chat: Chat) {
   return (
     <Box flexDirection="column">
       <Box>
-        <Box>
-          <Text bold>{chat.from} </Text>
-          <Text dimColor>(to {chat.to}</Text>
-          {chat.state === 'replied' && (
-            <Text dimColor> in {prettyMilliseconds(chat.time)}</Text>
-          )}
-          <Text dimColor>)</Text>
-          <Text>:</Text>
-        </Box>
+        <Text bold>{chat.from}</Text>
+        <Text dimColor> (to {chat.to}</Text>
+        {chat.state === 'replied' && (
+          <Text dimColor> in {prettyMilliseconds(chat.time)}</Text>
+        )}
+        <Text dimColor>)</Text>
+        <Text>:</Text>
       </Box>
 
       <Box>
-        <Box borderStyle="single" borderLeft={false} borderRight={false}>
-          {chat.state === 'replied' ? (
-            <Text>{chat.content}</Text>
-          ) : chat.state === 'seeded' ? (
-            <Text color="yellowBright">{chat.content}</Text>
-          ) : chat.state === 'failed' ? (
-            <Box flexDirection="column">
-              <Box gap={1}>
-                <Text color="red">✗</Text>
-                <Text dimColor>Something went wrong...</Text>
-              </Box>
-              <Text dimColor>{chat.content}</Text>
-            </Box>
-          ) : chat.state === 'interrupted' ? null : (
+        {chat.state === 'replied' ? (
+          <Text>{chat.content}</Text>
+        ) : chat.state === 'seeded' ? (
+          <Text color="yellowBright">{chat.content}</Text>
+        ) : chat.state === 'failed' ? (
+          <Box flexDirection="column">
             <Box gap={1}>
-              <Text color="green">
-                <Spinner type="dots" />
-              </Text>
-              <Text dimColor>Thinking...</Text>
+              <Text color="red">✗</Text>
+              <Text dimColor>Something went wrong...</Text>
             </Box>
-          )}
-        </Box>
+            <Text dimColor>{chat.content}</Text>
+          </Box>
+        ) : chat.state === 'interrupted' ? (
+          <Input />
+        ) : (
+          <Box gap={1}>
+            <Text color="magenta">
+              <Spinner type="dots" />
+            </Text>
+            <Text dimColor>Thinking...</Text>
+          </Box>
+        )}
       </Box>
     </Box>
   )
