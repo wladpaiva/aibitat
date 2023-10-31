@@ -1,5 +1,4 @@
 import Anthropic, {ClientOptions} from '@anthropic-ai/sdk'
-import debug from 'debug'
 
 import {FunctionDefinition} from '../aibitat.ts'
 import {
@@ -10,8 +9,6 @@ import {
   UnknownError,
 } from '../error.ts'
 import {AIProvider, Message} from './ai-provider.ts'
-
-const log = debug('autogen:provider:anthropic')
 
 /**
  * The model to use for the Anthropic API.
@@ -67,8 +64,6 @@ export class AnthropicProvider extends AIProvider<Anthropic> {
     messages: Message[],
     functions?: FunctionDefinition[],
   ): Promise<string> {
-    log(`calling 'anthropic.completions.create' with model '${this.model}'`)
-
     // clone messages to avoid mutating the original array
     const promptMessages = [...messages]
 

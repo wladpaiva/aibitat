@@ -1,4 +1,3 @@
-import debug from 'debug'
 import OpenAI, {
   ClientOptions,
   APIConnectionError as OpenAIAPIConnectionError,
@@ -24,8 +23,6 @@ import {
   UnknownError,
 } from '../error.ts'
 import {AIProvider} from './ai-provider.ts'
-
-const log = debug('autogen:provider:openai')
 
 /**
  * The model to use for the OpenAI API.
@@ -100,8 +97,6 @@ export class OpenAIProvider extends AIProvider<OpenAI> {
     messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[],
     functions?: FunctionDefinition[],
   ): Promise<string> {
-    log(`calling 'openai.chat.completions.create' with model '${this.model}'`)
-
     try {
       const response = await this.client.chat.completions.create({
         model: this.model,
@@ -109,8 +104,6 @@ export class OpenAIProvider extends AIProvider<OpenAI> {
         messages,
         functions,
       })
-
-      log('cost: ', this.getCost(response.usage))
 
       if (functions && response.choices[0].message.function_call) {
         // send the info on the function call and function response to GPT
@@ -201,7 +194,6 @@ export class OpenAIProvider extends AIProvider<OpenAI> {
     if (!(model in OpenAIProvider.COST_PER_TOKEN)) {
       return 'unknown'
     }
-    log('model:', model)
 
     const costPerToken =
       OpenAIProvider.COST_PER_TOKEN[
@@ -230,7 +222,7 @@ export class OpenAIProvider extends AIProvider<OpenAI> {
     call: OpenAI.Chat.ChatCompletionMessage.FunctionCall,
   ) {
     const funcToCall = functions.find(f => f.name === call.name)
-    log(`calling function "${call.name}" with arguments: `, call.arguments)
+
     if (!funcToCall) {
       throw new Error(`Function '${call.name}' not found`)
     }

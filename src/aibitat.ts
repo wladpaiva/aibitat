@@ -1,6 +1,5 @@
 import {EventEmitter} from 'events'
 import chalk from 'chalk'
-import debug from 'debug'
 
 import {APIError} from './error.ts'
 import {
@@ -10,8 +9,6 @@ import {
   type AnthropicModel,
   type OpenAIModel,
 } from './providers/index.ts'
-
-const log = debug('autogen:chat-aibitat')
 
 /**
  * The provider config to use for the AI.
@@ -449,12 +446,6 @@ export class AIbitat {
    * @param message The message to start the chat.
    */
   public async start(message: Message) {
-    log(
-      `starting a chat from ${chalk.yellow(message.from)} to ${chalk.yellow(
-        message.to,
-      )} with ${chalk.green(message.content)}`,
-    )
-
     // register the message in the chat history
     this.newMessage(message)
     this.emitter.emit('start', message, this)
@@ -475,12 +466,6 @@ export class AIbitat {
    * @param keepAlive Whether to keep the chat alive.
    */
   private async chat(route: Route, keepAlive = true) {
-    log(
-      `executing a chat from ${chalk.yellow(route.from)} to ${chalk.green(
-        route.to,
-      )}`,
-    )
-
     // check if the message is for a group
     // if it is, select the next node to chat with from the group
     // and then ask them to reply.
