@@ -99,12 +99,12 @@ export class AnthropicProvider extends Provider<Anthropic> {
     try {
       const response = await this.client.completions.create({
         model: this.model,
-        max_tokens_to_sample: 300,
+        max_tokens_to_sample: 3000,
         stream: false,
         prompt,
       })
 
-      const result = response.completion
+      const result = response.completion.trim()
       // TODO: get cost from response
       const cost = 0
 
