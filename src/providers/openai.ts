@@ -1,13 +1,37 @@
-import OpenAI, {ClientOptions} from 'openai'
+import debug from 'debug'
+import OpenAI, {
+  ClientOptions,
+  APIConnectionError as OpenAIAPIConnectionError,
+  APIConnectionTimeoutError as OpenAIAPIConnectionTimeoutError,
+  APIError as OpenAIAPIError,
+  APIUserAbortError as OpenAIAPIUserAbortError,
+  AuthenticationError as OpenAIAuthenticationError,
+  BadRequestError as OpenAIBadRequestError,
+  ConflictError as OpenAIConflictError,
+  InternalServerError as OpenAIInternalServerError,
+  NotFoundError as OpenAINotFoundError,
+  PermissionDeniedError as OpenAIPermissionDeniedError,
+  RateLimitError as OpenAIRateLimitError,
+  UnprocessableEntityError as OpenAIUnprocessableEntityError,
+} from 'openai'
 
-import {RetryError} from '../error.ts'
-import AIbitat from '../index.ts'
-import {Provider} from './ai-provider.ts'
+import {
+  APIError,
+  AuthorizationError,
+  RateLimitError,
+  ServerError,
+  UnknownError,
+} from '../error.ts'
+import {FunctionDefinition} from '../index.ts'
+import {AIProvider} from './ai-provider.ts'
+
+const log = debug('autogen:provider:openai')
 
 /**
  * The model to use for the OpenAI API.
  */
-type OpenAIModel = OpenAI.Chat.Completions.ChatCompletionCreateParams['model']
+export type OpenAIModel =
+  OpenAI.Chat.Completions.ChatCompletionCreateParams['model']
 
 /**
  * The configuration for the OpenAI provider.
@@ -29,7 +53,7 @@ export type OpenAIProviderConfig = {
  * The provider for the OpenAI API.
  * By default, the model is set to 'gpt-3.5-turbo'.
  */
-export class OpenAIProvider extends Provider<OpenAI> {
+export class OpenAIProvider extends AIProvider<OpenAI> {
   private model: OpenAIModel
   static COST_PER_TOKEN = {
     'gpt-4': {
@@ -72,10 +96,12 @@ export class OpenAIProvider extends Provider<OpenAI> {
    * @param messages A list of messages to send to the OpenAI API.
    * @returns The completion.
    */
-  async complete(
-    messages: OpenAI.ChatCompletionMessageParam[],
-    functions?: AIbitat.FunctionDefinition[],
-  ): Promise<Provider.Completion> {
+  async create(
+    messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[],
+    functions?: FunctionDefinition[],
+  ): Promise<string> {
+    log(`calling 'openai.chat.completions.create' with model '${this.model}'`)
+
     try {
       const response = await this.client.chat.completions.create({
         model: this.model,
@@ -84,52 +110,74 @@ export class OpenAIProvider extends Provider<OpenAI> {
         functions,
       })
 
-      // Right now, we only support one completion
-      // so we just take the first one in the list
-      const completion = response.choices[0].message
-      const cost = this.getCost(response.usage)
-      // treat function calls
-      if (completion.function_call) {
-        let functionArgs: object
-        try {
-          functionArgs = JSON.parse(completion.function_call.arguments)
-        } catch (error) {
-          // call the complete function again in case it gets a json error
-          return this.complete(
-            [
-              ...messages,
-              {
-                role: 'function',
-                name: completion.function_call.name,
-                function_call: completion.function_call,
-                content: (error as Error).message,
-              },
-            ],
-            functions,
-          )
-        }
+      log('cost: ', this.getCost(response.usage))
 
-        return {
-          result: null,
-          functionCall: {
-            name: completion.function_call.name,
-            arguments: functionArgs!,
-          },
-          cost,
-        }
+      if (functions && response.choices[0].message.function_call) {
+        // send the info on the function call and function response to GPT
+        // and return the response
+
+        const functionResponse = await this.callFunction(
+          functions,
+          response.choices[0].message.function_call,
+        )
+
+        return await this.create(
+          [
+            ...messages,
+            response.choices[0].message, // extend conversation with assistant's reply
+            //  extend conversation with function response
+            {
+              role: 'function',
+              name: response.choices[0].message.function_call.name,
+              content: functionResponse,
+            },
+          ],
+          functions,
+        )
       }
 
-      return {
-        result: completion.content,
-        cost,
+      if (response.choices[0].message.content) {
+        return response.choices[0].message.content
       }
+
+      throw new Error('No content found or function_call in the response')
+      // const stream = OpenAIStream(response)
+      // const result = new StreamingTextResponse(stream)
+      // return await result.text()
     } catch (error) {
+      // if (error instanceof OpenAIBadRequestError) {
+      //   throw new Error(error.message)
+      // }
+
       if (
-        error instanceof OpenAI.RateLimitError ||
-        error instanceof OpenAI.InternalServerError ||
-        error instanceof OpenAI.APIError
+        error instanceof OpenAIAuthenticationError ||
+        error instanceof OpenAIPermissionDeniedError
       ) {
-        throw new RetryError(error.message)
+        throw new AuthorizationError(error.message)
+      }
+
+      // if (error instanceof OpenAINotFoundError) {
+      //   throw new Error(error.message)
+      // }
+
+      // if (error instanceof OpenAIConflictError) {
+      //   throw new Error(error.message)
+      // }
+
+      // if (error instanceof OpenAIUnprocessableEntityError) {
+      //   throw new Error(error.message)
+      // }
+
+      if (error instanceof OpenAIRateLimitError) {
+        throw new RateLimitError(error.message)
+      }
+
+      if (error instanceof OpenAIInternalServerError) {
+        throw new ServerError(error.message)
+      }
+
+      if (error instanceof OpenAIAPIError) {
+        throw new UnknownError(error.message)
       }
 
       throw error
@@ -144,24 +192,59 @@ export class OpenAIProvider extends Provider<OpenAI> {
    */
   getCost(usage: OpenAI.Completions.CompletionUsage | undefined) {
     if (!usage) {
-      return Number.NaN
+      return 'unknown'
     }
 
-    // regex to remove the version number from the model
-    const modelBase = this.model.replace(/-(\d{4})$/, '')
+    // regex to remove the version number from the string
+    const model = this.model.replace(/-(\d{4})$/, '')
 
-    if (!(modelBase in OpenAIProvider.COST_PER_TOKEN)) {
-      return Number.NaN
+    if (!(model in OpenAIProvider.COST_PER_TOKEN)) {
+      return 'unknown'
     }
+    log('model:', model)
 
     const costPerToken =
       OpenAIProvider.COST_PER_TOKEN[
-        modelBase as keyof typeof OpenAIProvider.COST_PER_TOKEN
+        model as keyof typeof OpenAIProvider.COST_PER_TOKEN
       ]
 
     const inputCost = (usage.prompt_tokens / 1000) * costPerToken.input
     const outputCost = (usage.completion_tokens / 1000) * costPerToken.output
+    const total = inputCost + outputCost
 
-    return inputCost + outputCost
+    return Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+    }).format(total)
+  }
+
+  /**
+   * Call the function from the completion.
+   *
+   * @param functions The list of functions to call.
+   * @param completion The completion to get the function from.
+   * @returns The completion.
+   */
+  async callFunction(
+    functions: FunctionDefinition[],
+    call: OpenAI.Chat.ChatCompletionMessage.FunctionCall,
+  ) {
+    const funcToCall = functions.find(f => f.name === call.name)
+    log(`calling function "${call.name}" with arguments: `, call.arguments)
+    if (!funcToCall) {
+      throw new Error(`Function '${call.name}' not found`)
+    }
+
+    let json: any
+
+    try {
+      json = JSON.parse(call.arguments)
+    } catch (error) {
+      return Promise.resolve(
+        `Invalid JSON parameters: ${(error as Error).message}`,
+      )
+    }
+
+    return await funcToCall.handler(json)
   }
 }

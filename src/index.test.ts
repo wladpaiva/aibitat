@@ -1,21 +1,21 @@
 import {beforeEach, describe, expect, mock, test} from 'bun:test'
 import OpenAI from 'openai'
 
-import {RetryError} from './error.ts'
-import {AIbitat} from './index.ts'
-import type {Provider} from './providers/index.ts'
+import {RateLimitError} from './error.ts'
+import {AIbitat, type AIbitatProps} from './index.ts'
+import {AIProvider, Message} from './providers/index.ts'
 
 // HACK: Mock the AI provider.
 // This is still needed because Bun doesn't support mocking modules yet.
 // Neither mocking the HTTP requests.
 export const ai = {
-  complete: mock((messages: Provider.Message[]) => {}),
+  create: mock((messages: Message[]) => {}),
 }
-const provider = ai as unknown as Provider<OpenAI>
+const provider = ai as unknown as AIProvider<OpenAI>
 
 beforeEach(() => {
-  ai.complete.mockClear()
-  ai.complete.mockImplementation(() => Promise.resolve({result: 'TERMINATE'}))
+  ai.create.mockClear()
+  ai.create.mockImplementation(() => Promise.resolve('TERMINATE'))
 })
 
 const defaultStart = {
@@ -38,7 +38,9 @@ describe('direct message', () => {
       from: '🤖',
       to: '🧑',
       content: 'TERMINATE',
-      state: 'success',
+      state: 'replied',
+      // @ts-expect-error
+      time: expect.any(Number),
     })
   })
 
@@ -51,14 +53,14 @@ describe('direct message', () => {
 
     await aibitat.start(defaultStart)
 
-    expect(ai.complete).toHaveBeenCalledTimes(1)
-    expect(ai.complete.mock.calls[0][0][0].content).toEqual(role)
+    expect(ai.create).toHaveBeenCalledTimes(1)
+    expect(ai.create.mock.calls[0][0][0].content).toEqual(role)
   })
 
   test('should keep chatting util its task is done', async () => {
     let i = 0
-    ai.complete.mockImplementation(() =>
-      Promise.resolve({result: i >= 10 ? 'TERMINATE' : `... ${i++}`}),
+    ai.create.mockImplementation(() =>
+      Promise.resolve(i >= 10 ? 'TERMINATE' : `... ${i++}`),
     )
 
     const aibitat = new AIbitat({provider})
@@ -72,7 +74,7 @@ describe('direct message', () => {
   })
 
   test('should not engage in infinity conversations', async () => {
-    ai.complete.mockImplementation(() => Promise.resolve({result: '...'}))
+    ai.create.mockImplementation(() => Promise.resolve('...'))
 
     const aibitat = new AIbitat({provider, maxRounds: 4})
       .agent('🧑', {interrupt: 'NEVER'})
@@ -80,7 +82,7 @@ describe('direct message', () => {
 
     await aibitat.start(defaultStart)
 
-    expect(ai.complete).toHaveBeenCalledTimes(3)
+    expect(ai.create).toHaveBeenCalledTimes(3)
   })
 
   test('should have initial messages', async () => {
@@ -92,7 +94,8 @@ describe('direct message', () => {
           from: '🧑',
           to: '🤖',
           content: '2 + 2 = 4?',
-          state: 'success',
+          state: 'replied',
+          time: 2,
         },
       ],
     })
@@ -110,7 +113,8 @@ describe('direct message', () => {
       from: '🧑',
       to: '🤖',
       content: '2 + 2 = 4?',
-      state: 'success',
+      state: 'replied',
+      time: 2,
     })
   })
 
@@ -128,7 +132,7 @@ describe('direct message', () => {
   })
 
   test('should always interrupt interaction after each reply', async () => {
-    ai.complete.mockImplementation(() => Promise.resolve({result: '...'}))
+    ai.create.mockImplementation(() => Promise.resolve('...'))
 
     const aibitat = new AIbitat({provider, interrupt: 'ALWAYS'})
       .agent('🧑')
@@ -143,7 +147,7 @@ describe('direct message', () => {
   })
 
   test('should trigger an event when a interaction is needed', async () => {
-    ai.complete.mockImplementation(() => Promise.resolve({result: '...'}))
+    ai.create.mockImplementation(() => Promise.resolve('...'))
 
     const aibitat = new AIbitat({provider})
       .agent('🧑', {interrupt: 'ALWAYS'})
@@ -158,7 +162,7 @@ describe('direct message', () => {
   })
 
   test('should auto-reply only when user skip engaging', async () => {
-    ai.complete.mockImplementation(() => Promise.resolve({result: '...'}))
+    ai.create.mockImplementation(() => Promise.resolve('...'))
 
     const aibitat = new AIbitat({provider})
       .agent('🧑', {interrupt: 'ALWAYS'})
@@ -180,13 +184,14 @@ describe('direct message', () => {
     })
 
     expect(p).resolves.toBeTrue()
+    // @ts-expect-error
     expect(aibitat.chats[3].content).toBe('...')
-    expect(aibitat.chats[3].state).toBe('success')
+    expect(aibitat.chats[3].state).toBe('replied')
     expect(aibitat.chats).toHaveLength(5)
   })
 
   test('should continue conversation with user`s feedback', async () => {
-    ai.complete.mockImplementation(() => Promise.resolve({result: '...'}))
+    ai.create.mockImplementation(() => Promise.resolve('...'))
 
     const aibitat = new AIbitat({provider, maxRounds: 10})
       .agent('🧑', {interrupt: 'ALWAYS'})
@@ -211,6 +216,8 @@ describe('direct message', () => {
     expect(p).resolves.toBeTrue()
     expect(aibitat.chats[2].from).toBe('🧑')
     expect(aibitat.chats[2].to).toBe('🤖')
+    expect(aibitat.chats[2].state).toBe('seeded')
+    // @ts-expect-error
     expect(aibitat.chats[2].content).toBe('my feedback')
   })
 })
@@ -218,18 +225,18 @@ describe('direct message', () => {
 describe('as a group', () => {
   const members = ['🐶', '😸', '🐭']
 
-  let aibitat: AIbitat
+  let aibitat: AIbitat<any>
 
   beforeEach(() => {
-    ai.complete.mockImplementation(x => {
+    ai.create.mockImplementation(x => {
       const roleMessage = x.find(y => y.content?.includes('next role'))
       if (roleMessage) {
         // pick a random node from group
         const nextRole = members[Math.floor(Math.random() * members.length)]
-        return Promise.resolve({result: nextRole})
+        return Promise.resolve(nextRole)
       }
 
-      return Promise.resolve({result: '...'})
+      return Promise.resolve('...')
     })
 
     aibitat = new AIbitat({provider})
@@ -256,6 +263,26 @@ describe('as a group', () => {
 
     expect(aibitat.chats).toHaveLength(5)
   })
+})
+
+test('should be thinking while LLM generate responses', async () => {
+  const aibitat = new AIbitat({provider})
+    .agent('🧑', {interrupt: 'ALWAYS'})
+    .agent('🤖')
+
+  const callback = mock(() => {
+    expect(aibitat.chats).toHaveLength(2)
+    expect(aibitat.chats.at(-1)).toEqual({
+      from: '🤖',
+      to: '🧑',
+      state: 'thinking',
+    })
+  })
+  aibitat.onThinking(callback)
+
+  await aibitat.start(defaultStart)
+
+  expect(callback).toHaveBeenCalledTimes(1)
 })
 
 test.todo('should call a function', async () => {
@@ -304,7 +331,7 @@ describe('when errors happen', () => {
   test('should escape unknown errors', async () => {
     const customError = new Error('unknown error')
 
-    ai.complete.mockImplementation(() => {
+    ai.create.mockImplementation(() => {
       throw customError
     })
 
@@ -320,8 +347,8 @@ describe('when errors happen', () => {
   })
 
   test('should handle known errors', async () => {
-    const error = new RetryError('known error!!!')
-    ai.complete.mockImplementation(() => {
+    const error = new RateLimitError('known error!!!')
+    ai.create.mockImplementation(() => {
       throw error
     })
 
@@ -339,13 +366,13 @@ describe('when errors happen', () => {
       from: '🤖',
       to: '🧑',
       content: 'known error!!!',
-      state: 'error',
+      state: 'failed',
     })
   })
 
   test('should trigger the error event', async () => {
-    const error = new RetryError('401: Rate limit')
-    ai.complete.mockImplementation(() => {
+    const error = new RateLimitError('401: Rate limit')
+    ai.create.mockImplementation(() => {
       throw error
     })
 
@@ -364,13 +391,13 @@ describe('when errors happen', () => {
 
   test('should be able to retry', async () => {
     let i = 0
-    const error = new RetryError('401: Rate limit')
-    ai.complete.mockImplementation(() => {
+    const error = new RateLimitError('401: Rate limit')
+    ai.create.mockImplementation(() => {
       if (i++ === 0) {
         throw error
       }
 
-      return Promise.resolve({result: 'TERMINATE'})
+      return Promise.resolve('TERMINATE')
     })
 
     const aibitat = new AIbitat({provider})
@@ -382,18 +409,20 @@ describe('when errors happen', () => {
       from: '🤖',
       to: '🧑',
       content: '401: Rate limit',
-      state: 'error',
+      state: 'failed',
     })
 
     await aibitat.retry()
 
-    expect(ai.complete).toHaveBeenCalledTimes(2)
+    expect(ai.create).toHaveBeenCalledTimes(2)
     expect(aibitat.chats).toHaveLength(2)
     expect(aibitat.chats.at(-1)).toEqual({
       from: '🤖',
       to: '🧑',
       content: 'TERMINATE',
-      state: 'success',
+      state: 'replied',
+      // @ts-expect-error
+      time: expect.any(Number),
     })
   })
 })

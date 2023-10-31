@@ -4,7 +4,7 @@ import {PromptTemplate} from 'langchain/prompts'
 import {RecursiveCharacterTextSplitter} from 'langchain/text_splitter'
 import {NodeHtmlMarkdown} from 'node-html-markdown'
 
-import type {AIbitat} from '..'
+import {AIbitatPlugin} from '..'
 
 /**
  * Use serper.dev to search on Google.
@@ -174,5 +174,5 @@ export function experimental_webBrowsing({}: {} = {}) {
         },
       })
     },
-  } as AIbitat.Plugin
+  } as AIbitatPlugin<any>
 }

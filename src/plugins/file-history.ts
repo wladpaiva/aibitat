@@ -1,7 +1,7 @@
 import fs from 'fs'
 import path from 'path'
 
-import type {AIbitat} from '..'
+import {AIbitatPlugin} from '..'
 
 /**
  * Plugin to save chat history to a json file
@@ -37,5 +37,5 @@ export function fileHistory({
         })
       })
     },
-  } as AIbitat.Plugin
+  } as AIbitatPlugin<any>
 }

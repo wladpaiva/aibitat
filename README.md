@@ -1,7 +1,7 @@
 This project is a fork from the original
 [autogen](https://github.com/microsoft/autogen) but done in TypeScript.
 
-# AIbitat - Multi-Agent Conversation Framework
+# AIbitat 🗯️🗯️💬 - Multi-Agent Conversation Framework
 
 AIbitat is a stateless & extensible framework designed to enable interaction
 between multiple agents while allowing human participation.
@@ -130,7 +130,7 @@ config:
     //   from: '🧑',
     //   to: '🤖',
     //   content: `Talk about something`,
-    //   state: 'success',
+    //   state: 'replied',
     // },
   ],
 }
@@ -214,24 +214,29 @@ export function myPlugin(): AIbitatPlugin {
   enable agents to search and navigate on the internet. NOTE: this plugin is
   experimental and may not work as expected.
 
-### Life cycle
+### Listening to events
 
-AIbitat supports Life Cycle events, which trigger at specific moments. The
-following diagram shows the life cycle of a conversation:
+You can listen to events using the `on` method:
 
-![Life cycle](./docs/life-cycle.png)
+```ts
+aibitat.onMessage(({from, to, content}) => console.log(`${from}: ${content}`))
+```
 
-The life cycle events in AIbitat consists of:
+The following events are available:
 
-- `start`: Called when the chat starts.
-- `error`: Called when there's a known error (see `src/error.ts`). To retry,
+- `onStart`: Called when the chat starts.
+- `onError`: Called when there's a known error (see `src/error.ts`). To retry,
   call `.retry()`.
-- `message`: Called when a message is added to the chat history.
-- `terminate`: Called when the conversation is terminated. Generally means there
-  is nothing else to do and a new conversation should be started.
-- `interrupt`: Called when the conversation is interrupted by an agent.
+- `onMessage`: Called when a message is added to the chat history.
+- `onTerminate`: Called when the conversation is terminated. Generally means
+  there is nothing else to do and a new conversation should be started.
+- `onInterrupt`: Called when the conversation is interrupted by an agent.
   Generally means the agent has a question or needs help. The conversation can
   be resumed by calling `.continue(feedback)`.
+- `onThinking`: Called when a message is sent to the provider. Generally means
+  the provider is thinking and the conversation is waiting for a response.
+  `thinking` status is added to the chat history and gets replaced by either
+  `replied` or `error`.
 
 ## Contributing
 
