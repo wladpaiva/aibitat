@@ -1,8 +1,8 @@
 import {input} from '@inquirer/prompts'
 import chalk from 'chalk'
 
-import {AIbitatPlugin} from '..'
-import {RateLimitError, ServerError} from '../error'
+import type {AIbitat} from '..'
+import {RetryError} from '../error'
 
 /**
  * Command-line Interface plugin. It prints the messages on the console and asks for feedback
@@ -26,7 +26,7 @@ function cli({
       aibitat.onError(error => {
         console.error(chalk.red(`   error: ${(error as Error).message}`))
 
-        if (error instanceof RateLimitError || error instanceof ServerError) {
+        if (error instanceof RetryError) {
           console.error(chalk.red(`   retrying in 60 seconds...`))
           setTimeout(() => {
             aibitat.retry()
@@ -70,7 +70,7 @@ function cli({
         await aibitat.continue(feedback)
       })
     },
-  } as AIbitatPlugin
+  } as AIbitat.Plugin
 }
 
 /**

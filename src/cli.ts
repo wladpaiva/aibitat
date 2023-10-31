@@ -2,7 +2,7 @@
 import {input} from '@inquirer/prompts'
 import chalk from 'chalk'
 
-import {AIbitat} from './aibitat.ts'
+import {AIbitat} from './index.ts'
 import {cli, experimental_webBrowsing} from './plugins'
 
 console.log(chalk.greenBright('Welcome to AIbitat!'))

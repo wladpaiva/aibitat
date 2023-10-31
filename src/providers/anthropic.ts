@@ -1,19 +1,13 @@
 import Anthropic, {ClientOptions} from '@anthropic-ai/sdk'
 
-import {FunctionDefinition} from '../aibitat.ts'
-import {
-  APIError,
-  AuthorizationError,
-  RateLimitError,
-  ServerError,
-  UnknownError,
-} from '../error.ts'
-import {AIProvider, Message} from './ai-provider.ts'
+import type {AIbitat} from '..'
+import {RetryError} from '../error.ts'
+import {Provider} from './ai-provider.ts'
 
 /**
  * The model to use for the Anthropic API.
  */
-export type AnthropicModel = Anthropic.CompletionCreateParams['model']
+type AnthropicModel = Anthropic.CompletionCreateParams['model']
 
 /**
  * The configuration for the Anthropic provider.
@@ -35,7 +29,7 @@ export type AnthropicProviderConfig = {
  * The provider for the OpenAI API.
  * By default, the model is set to 'claude-2'.
  */
-export class AnthropicProvider extends AIProvider<Anthropic> {
+export class AnthropicProvider extends Provider<Anthropic> {
   private model: AnthropicModel
 
   constructor(config: AnthropicProviderConfig = {}) {
@@ -60,31 +54,16 @@ export class AnthropicProvider extends AIProvider<Anthropic> {
    * @param messages A list of messages to send to the Anthropic API.
    * @returns The completion.
    */
-  async create(
-    messages: Message[],
-    functions?: FunctionDefinition[],
-  ): Promise<string> {
+  async complete(
+    messages: Provider.Message[],
+    functions?: AIbitat.FunctionDefinition[],
+  ): Promise<Provider.Completion> {
     // clone messages to avoid mutating the original array
     const promptMessages = [...messages]
 
     if (functions) {
-      const functionPrompt = `<functions>You have been trained to directly call a Javascript function passing a JSON Schema parameter as a response to this chat. This function will return a string that you can use to keep chatting.
-  
-  Here is a list of functions available to you:
-  ${JSON.stringify(
-    functions.map(({handler, ...rest}) => rest),
-    null,
-    2,
-  )}
-  
-  When calling any of those function in order to complete your task, respond only this JSON format. Do not include any other information or any other stuff.
-  
-  Function call format:
-  {
-     function_name: "givenfunctionname",
-     parameters: {}
-  }
-  </functions>`
+      const functionPrompt = this.getFunctionPrompt(functions)
+
       // add function prompt after the first message
       promptMessages.splice(1, 0, {
         content: functionPrompt,
@@ -102,6 +81,7 @@ export class AnthropicProvider extends AIProvider<Anthropic> {
               ? `${Anthropic.HUMAN_PROMPT} <admin>${content}</admin>`
               : ''
 
+          case 'function':
           case 'user':
             return `${Anthropic.HUMAN_PROMPT} ${content}`
 
@@ -125,87 +105,70 @@ export class AnthropicProvider extends AIProvider<Anthropic> {
       })
 
       const result = response.completion
+      // TODO: get cost from response
+      const cost = 0
 
       // Handle function calls if the model returns a function call
       if (result.includes('function_name') && functions) {
-        const functionResponse = await this.callFunction(result, functions)
+        let functionCall: AIbitat.FunctionCall
+        try {
+          functionCall = JSON.parse(result)
+        } catch (error) {
+          // call the complete function again in case it gets a json error
+          return await this.complete(
+            [
+              ...messages,
+              {
+                role: 'function',
+                content: `You gave me this function call: ${result} but I couldn't parse it.
+                ${(error as Error).message}
+                
+                Please try again.`,
+              },
+            ],
+            functions,
+          )
+        }
 
-        return await this.create(
-          [
-            ...messages,
-            //  extend conversation with function response
-            {
-              role: 'user',
-              content: functionResponse,
-            },
-          ],
-          functions,
-        )
+        return {
+          result: null,
+          functionCall,
+          cost,
+        }
       }
 
-      return result
+      return {
+        result,
+        cost,
+      }
     } catch (error) {
-      // if (error instanceof Anthropic.BadRequestError) {
-      //   throw new Error(error.message)
-      // }
-
       if (
-        error instanceof Anthropic.AuthenticationError ||
-        error instanceof Anthropic.PermissionDeniedError
+        error instanceof Anthropic.RateLimitError ||
+        error instanceof Anthropic.InternalServerError ||
+        error instanceof Anthropic.APIError
       ) {
-        throw new AuthorizationError(error.message)
-      }
-
-      // if (error instanceof Anthropic.NotFoundError) {
-      //   throw new Error(error.message)
-      // }
-
-      // if (error instanceof Anthropic.ConflictError) {
-      //   throw new Error(error.message)
-      // }
-
-      // if (error instanceof Anthropic.UnprocessableEntityError) {
-      //   throw new Error(error.message)
-      // }
-
-      if (error instanceof Anthropic.RateLimitError) {
-        throw new RateLimitError(error.message)
-      }
-
-      if (error instanceof Anthropic.InternalServerError) {
-        throw new ServerError(error.message)
-      }
-
-      if (error instanceof Anthropic.APIError) {
-        throw new UnknownError(error.message)
+        throw new RetryError(error.message)
       }
 
       throw error
     }
   }
 
-  private callFunction(callJson: string, functions: FunctionDefinition[]) {
-    let call: object
-    try {
-      call = JSON.parse(callJson)
-    } catch (error) {
-      return `${callJson}
-Invalid JSON:  ${(error as Error).message}`
-    }
+  private getFunctionPrompt(functions: AIbitat.FunctionDefinition[]) {
+    const functionPrompt = `<functions>You have been trained to directly call a Javascript function passing a JSON Schema parameter as a response to this chat. This function will return a string that you can use to keep chatting.
+  
+  Here is a list of functions available to you:
+  ${JSON.stringify(functions, null, 2)}
+  
+  When calling any of those function in order to complete your task, respond only this JSON format. Do not include any other information or any other stuff.
+  
+  Function call format:
+  {
+     function_name: "givenfunctionname",
+     parameters: {}
+  }
+  </functions>`
 
-    const {function_name, parameters} = call as {
-      function_name: string
-      parameters: object
-    }
-
-    const functionDefinition = functions.find(
-      ({name}) => name === function_name,
-    )
-
-    if (!functionDefinition) {
-      return `${callJson} gave me a function not found.`
-    }
-
-    return functionDefinition.handler(parameters)
+    return functionPrompt
   }
 }

@@ -1,21 +1,21 @@
 import {beforeEach, describe, expect, mock, test} from 'bun:test'
 import OpenAI from 'openai'
 
-import {AIbitat, type AIbitatProps} from './aibitat.ts'
-import {RateLimitError} from './error.ts'
-import {AIProvider, Message} from './providers/index.ts'
+import {RetryError} from './error.ts'
+import {AIbitat} from './index.ts'
+import type {Provider} from './providers/index.ts'
 
 // HACK: Mock the AI provider.
 // This is still needed because Bun doesn't support mocking modules yet.
 // Neither mocking the HTTP requests.
 export const ai = {
-  create: mock((messages: Message[]) => {}),
+  complete: mock((messages: Provider.Message[]) => {}),
 }
-const provider = ai as unknown as AIProvider<OpenAI>
+const provider = ai as unknown as Provider<OpenAI>
 
 beforeEach(() => {
-  ai.create.mockClear()
-  ai.create.mockImplementation(() => Promise.resolve('TERMINATE'))
+  ai.complete.mockClear()
+  ai.complete.mockImplementation(() => Promise.resolve({result: 'TERMINATE'}))
 })
 
 const defaultStart = {
@@ -51,14 +51,14 @@ describe('direct message', () => {
 
     await aibitat.start(defaultStart)
 
-    expect(ai.create).toHaveBeenCalledTimes(1)
-    expect(ai.create.mock.calls[0][0][0].content).toEqual(role)
+    expect(ai.complete).toHaveBeenCalledTimes(1)
+    expect(ai.complete.mock.calls[0][0][0].content).toEqual(role)
   })
 
   test('should keep chatting util its task is done', async () => {
     let i = 0
-    ai.create.mockImplementation(() =>
-      Promise.resolve(i >= 10 ? 'TERMINATE' : `... ${i++}`),
+    ai.complete.mockImplementation(() =>
+      Promise.resolve({result: i >= 10 ? 'TERMINATE' : `... ${i++}`}),
     )
 
     const aibitat = new AIbitat({provider})
@@ -72,7 +72,7 @@ describe('direct message', () => {
   })
 
   test('should not engage in infinity conversations', async () => {
-    ai.create.mockImplementation(() => Promise.resolve('...'))
+    ai.complete.mockImplementation(() => Promise.resolve({result: '...'}))
 
     const aibitat = new AIbitat({provider, maxRounds: 4})
       .agent('🧑', {interrupt: 'NEVER'})
@@ -80,7 +80,7 @@ describe('direct message', () => {
 
     await aibitat.start(defaultStart)
 
-    expect(ai.create).toHaveBeenCalledTimes(3)
+    expect(ai.complete).toHaveBeenCalledTimes(3)
   })
 
   test('should have initial messages', async () => {
@@ -128,7 +128,7 @@ describe('direct message', () => {
   })
 
   test('should always interrupt interaction after each reply', async () => {
-    ai.create.mockImplementation(() => Promise.resolve('...'))
+    ai.complete.mockImplementation(() => Promise.resolve({result: '...'}))
 
     const aibitat = new AIbitat({provider, interrupt: 'ALWAYS'})
       .agent('🧑')
@@ -143,7 +143,7 @@ describe('direct message', () => {
   })
 
   test('should trigger an event when a interaction is needed', async () => {
-    ai.create.mockImplementation(() => Promise.resolve('...'))
+    ai.complete.mockImplementation(() => Promise.resolve({result: '...'}))
 
     const aibitat = new AIbitat({provider})
       .agent('🧑', {interrupt: 'ALWAYS'})
@@ -158,7 +158,7 @@ describe('direct message', () => {
   })
 
   test('should auto-reply only when user skip engaging', async () => {
-    ai.create.mockImplementation(() => Promise.resolve('...'))
+    ai.complete.mockImplementation(() => Promise.resolve({result: '...'}))
 
     const aibitat = new AIbitat({provider})
       .agent('🧑', {interrupt: 'ALWAYS'})
@@ -186,7 +186,7 @@ describe('direct message', () => {
   })
 
   test('should continue conversation with user`s feedback', async () => {
-    ai.create.mockImplementation(() => Promise.resolve('...'))
+    ai.complete.mockImplementation(() => Promise.resolve({result: '...'}))
 
     const aibitat = new AIbitat({provider, maxRounds: 10})
       .agent('🧑', {interrupt: 'ALWAYS'})
@@ -221,15 +221,15 @@ describe('as a group', () => {
   let aibitat: AIbitat
 
   beforeEach(() => {
-    ai.create.mockImplementation(x => {
+    ai.complete.mockImplementation(x => {
       const roleMessage = x.find(y => y.content?.includes('next role'))
       if (roleMessage) {
         // pick a random node from group
         const nextRole = members[Math.floor(Math.random() * members.length)]
-        return Promise.resolve(nextRole)
+        return Promise.resolve({result: nextRole})
       }
 
-      return Promise.resolve('...')
+      return Promise.resolve({result: '...'})
     })
 
     aibitat = new AIbitat({provider})
@@ -304,7 +304,7 @@ describe('when errors happen', () => {
   test('should escape unknown errors', async () => {
     const customError = new Error('unknown error')
 
-    ai.create.mockImplementation(() => {
+    ai.complete.mockImplementation(() => {
       throw customError
     })
 
@@ -320,8 +320,8 @@ describe('when errors happen', () => {
   })
 
   test('should handle known errors', async () => {
-    const error = new RateLimitError('known error!!!')
-    ai.create.mockImplementation(() => {
+    const error = new RetryError('known error!!!')
+    ai.complete.mockImplementation(() => {
       throw error
     })
 
@@ -344,8 +344,8 @@ describe('when errors happen', () => {
   })
 
   test('should trigger the error event', async () => {
-    const error = new RateLimitError('401: Rate limit')
-    ai.create.mockImplementation(() => {
+    const error = new RetryError('401: Rate limit')
+    ai.complete.mockImplementation(() => {
       throw error
     })
 
@@ -364,13 +364,13 @@ describe('when errors happen', () => {
 
   test('should be able to retry', async () => {
     let i = 0
-    const error = new RateLimitError('401: Rate limit')
-    ai.create.mockImplementation(() => {
+    const error = new RetryError('401: Rate limit')
+    ai.complete.mockImplementation(() => {
       if (i++ === 0) {
         throw error
       }
 
-      return Promise.resolve('TERMINATE')
+      return Promise.resolve({result: 'TERMINATE'})
     })
 
     const aibitat = new AIbitat({provider})
@@ -387,7 +387,7 @@ describe('when errors happen', () => {
 
     await aibitat.retry()
 
-    expect(ai.create).toHaveBeenCalledTimes(2)
+    expect(ai.complete).toHaveBeenCalledTimes(2)
     expect(aibitat.chats).toHaveLength(2)
     expect(aibitat.chats.at(-1)).toEqual({
       from: '🤖',
