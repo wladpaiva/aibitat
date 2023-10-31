@@ -214,23 +214,22 @@ export function myPlugin(): AIbitatPlugin {
   enable agents to search and navigate on the internet. NOTE: this plugin is
   experimental and may not work as expected.
 
-### Listening to events
+### Life cycle
 
-You can listen to events using the `on` method:
+AIbitat supports Life Cycle events, which trigger at specific moments. The
+following diagram shows the life cycle of a conversation:
 
-```ts
-aibitat.onMessage(({from, to, content}) => console.log(`${from}: ${content}`))
-```
+![Life cycle](./docs/life-cycle.png)
 
-The following events are available:
+The life cycle events in AIbitat consists of:
 
-- `onStart`: Called when the chat starts.
-- `onError`: Called when there's a known error (see `src/error.ts`). To retry,
+- `start`: Called when the chat starts.
+- `error`: Called when there's a known error (see `src/error.ts`). To retry,
   call `.retry()`.
-- `onMessage`: Called when a message is added to the chat history.
-- `onTerminate`: Called when the conversation is terminated. Generally means
-  there is nothing else to do and a new conversation should be started.
-- `onInterrupt`: Called when the conversation is interrupted by an agent.
+- `message`: Called when a message is added to the chat history.
+- `terminate`: Called when the conversation is terminated. Generally means there
+  is nothing else to do and a new conversation should be started.
+- `interrupt`: Called when the conversation is interrupted by an agent.
   Generally means the agent has a question or needs help. The conversation can
   be resumed by calling `.continue(feedback)`.
 
