@@ -1,8 +1,8 @@
 import {beforeEach, describe, expect, mock, test} from 'bun:test'
 import OpenAI from 'openai'
 
-import {AIbitat, type AIbitatProps} from './aibitat.ts'
 import {RateLimitError} from './error.ts'
+import {AIbitat, type AIbitatProps} from './index.ts'
 import {AIProvider, Message} from './providers/index.ts'
 
 // HACK: Mock the AI provider.

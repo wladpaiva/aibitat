@@ -1,4 +1,4 @@
-import {FunctionDefinition} from '../aibitat.ts'
+import {FunctionDefinition} from '../index.ts'
 
 export type Role = 'system' | 'user' | 'assistant'
 

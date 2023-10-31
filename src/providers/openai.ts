@@ -15,7 +15,6 @@ import OpenAI, {
   UnprocessableEntityError as OpenAIUnprocessableEntityError,
 } from 'openai'
 
-import {FunctionDefinition} from '../aibitat.ts'
 import {
   APIError,
   AuthorizationError,
@@ -23,6 +22,7 @@ import {
   ServerError,
   UnknownError,
 } from '../error.ts'
+import {FunctionDefinition} from '../index.ts'
 import {AIProvider} from './ai-provider.ts'
 
 const log = debug('autogen:provider:openai')

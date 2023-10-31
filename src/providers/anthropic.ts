@@ -1,7 +1,6 @@
 import Anthropic, {ClientOptions} from '@anthropic-ai/sdk'
 import debug from 'debug'
 
-import {FunctionDefinition} from '../aibitat.ts'
 import {
   APIError,
   AuthorizationError,
@@ -9,6 +8,7 @@ import {
   ServerError,
   UnknownError,
 } from '../error.ts'
+import {FunctionDefinition} from '../index.ts'
 import {AIProvider, Message} from './ai-provider.ts'
 
 const log = debug('autogen:provider:anthropic')
