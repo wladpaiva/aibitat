@@ -70,7 +70,7 @@ function cli({
         await aibitat.continue(feedback)
       })
     },
-  } as AIbitat.Plugin
+  } as AIbitat.Plugin<any>
 }
 
 /**

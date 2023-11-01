@@ -218,7 +218,7 @@ describe('direct message', () => {
 describe('as a group', () => {
   const members = ['🐶', '😸', '🐭']
 
-  let aibitat: AIbitat
+  let aibitat: AIbitat<any>
 
   beforeEach(() => {
     ai.complete.mockImplementation(x => {

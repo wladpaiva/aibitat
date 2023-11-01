@@ -7,17 +7,22 @@ import * as Providers from './providers'
 export * from './providers'
 
 /**
+ * Available providers
+ */
+type Provider = 'openai' | 'anthropic' | Providers.Provider<unknown>
+
+/**
  * The provider config to use for the AI.
  */
-export type ProviderConfig =
-  // FIX: should only show Openai models when there's no provider
-  | {
+export type ProviderConfig<T extends Provider = 'openai'> = T extends 'openai'
+  ? {
       /** The OpenAI API provider */
       provider?: 'openai'
       /** The model to use with the OpenAI */
       model?: Providers.OpenAIProviderConfig['model']
     }
-  | {
+  : T extends 'anthropic'
+  ? {
       /** The custom AI provider */
       provider: 'anthropic'
       /**
@@ -26,7 +31,7 @@ export type ProviderConfig =
        */
       model?: Providers.AnthropicProviderConfig['model']
     }
-  | {
+  : {
       /** The custom AI provider */
       provider: Providers.Provider<unknown>
     }
@@ -34,7 +39,7 @@ export type ProviderConfig =
 /**
  * Base config for AIbitat agents.
  */
-export type AgentConfig = ProviderConfig & {
+export type AgentConfig<T extends Provider = 'openai'> = ProviderConfig<T> & {
   /** The role this agent will play in the conversation */
   role?: string
 
@@ -54,7 +59,7 @@ export type AgentConfig = ProviderConfig & {
 /**
  * The channel configuration for the AIbitat.
  */
-export type ChannelConfig = ProviderConfig & {
+export type ChannelConfig<T extends Provider = 'openai'> = ProviderConfig<T> & {
   /** The role this agent will play in the conversation */
   role?: string
 
@@ -76,9 +81,16 @@ type Route = {
 /**
  * A chat message.
  */
-type Message = Route & {
-  content: string
-}
+type Message = Prettify<
+  Route & {
+    content: string
+  }
+>
+
+// Prettify a type
+type Prettify<T> = {
+  [K in keyof T]: T[K]
+} & {}
 
 /**
  * A chat message that is saved in the history.
@@ -96,7 +108,7 @@ type History = Array<Chat>
 /**
  * AIbitat props.
  */
-export type AIbitatProps = ProviderConfig & {
+export type AIbitatProps<T extends Provider> = ProviderConfig<T> & {
   /**
    * Chat history between all agents.
    * @default []
@@ -122,19 +134,19 @@ export type AIbitatProps = ProviderConfig & {
  *
  * Guiding the chat through a graph of agents.
  */
-export class AIbitat {
+export class AIbitat<T extends Provider> {
   private emitter = new EventEmitter()
 
-  private defaultProvider: ProviderConfig
+  private defaultProvider: ProviderConfig<any>
   private defaultInterrupt
   private maxRounds
   private _chats
 
-  private agents = new Map<string, AgentConfig>()
-  private channels = new Map<string, {members: string[]} & ChannelConfig>()
+  private agents = new Map<string, AgentConfig<any>>()
+  private channels = new Map<string, {members: string[]} & ChannelConfig<any>>()
   private functions = new Map<string, AIbitat.FunctionConfig>()
 
-  constructor(props: AIbitatProps = {}) {
+  constructor(props: AIbitatProps<T> = {} as AIbitatProps<T>) {
     const {
       chats = [],
       interrupt = 'NEVER',
@@ -162,7 +174,7 @@ export class AIbitat {
   /**
    * Install a plugin.
    */
-  use(plugin: AIbitat.Plugin) {
+  use<T extends Provider>(plugin: AIbitat.Plugin<T>) {
     plugin.setup(this)
     return this
   }
@@ -174,7 +186,10 @@ export class AIbitat {
    * @param config
    * @returns
    */
-  public agent(name: string, config: AgentConfig = {}) {
+  public agent<T extends Provider>(
+    name: string,
+    config: AgentConfig<T> = {} as AgentConfig<T>,
+  ) {
     this.agents.set(name, config)
     return this
   }
@@ -187,7 +202,11 @@ export class AIbitat {
    * @param config
    * @returns
    */
-  public channel(name: string, members: string[], config: ChannelConfig = {}) {
+  public channel<T extends Provider>(
+    name: string,
+    members: string[],
+    config: ChannelConfig<T> = {} as ChannelConfig<T>,
+  ) {
     this.channels.set(name, {
       members,
       ...config,
@@ -378,7 +397,9 @@ export class AIbitat {
    * @param listener
    * @returns
    */
-  public onStart(listener: (chat: Chat, aibitat: AIbitat) => void) {
+  public onStart<T extends Provider>(
+    listener: (chat: Chat, aibitat: AIbitat<T>) => void,
+  ) {
     this.emitter.on('start', listener)
     return this
   }
@@ -805,7 +826,7 @@ ${this.getHistory({to: route.to})
    *
    * @param config The provider configuration.
    */
-  private getProviderForConfig(config: ProviderConfig) {
+  private getProviderForConfig<T extends Provider>(config: ProviderConfig<T>) {
     if (typeof config.provider === 'object') {
       return config.provider
     }
@@ -838,7 +859,7 @@ export namespace AIbitat {
   /**
    * Plugin to use with the aibitat
    */
-  export type Plugin = {
+  export type Plugin<T extends Provider> = {
     /**
      * The name of the plugin. This will be used to identify the plugin.
      * If the plugin is already installed, it will replace the old plugin.
@@ -848,7 +869,7 @@ export namespace AIbitat {
     /**
      * The setup function to be called when the plugin is installed.
      */
-    setup: (aibitat: AIbitat) => void
+    setup: (aibitat: AIbitat<T>) => void
   }
 
   export type FunctionConfig = Function.FunctionConfig

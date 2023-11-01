@@ -37,5 +37,5 @@ export function fileHistory({
         })
       })
     },
-  } as AIbitat.Plugin
+  } as AIbitat.Plugin<any>
 }

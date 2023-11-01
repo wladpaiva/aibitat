@@ -174,5 +174,5 @@ export function experimental_webBrowsing({}: {} = {}) {
         },
       })
     },
-  } as AIbitat.Plugin
+  } as AIbitat.Plugin<any>
 }
