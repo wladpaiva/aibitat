@@ -246,7 +246,7 @@ bun install
 To run:
 
 ```bash
-bun run examples/1-basic.ts
+bun run examples/beginner-chat.ts
 ```
 
 > Check out the [examples](./examples) folder for more examples.
