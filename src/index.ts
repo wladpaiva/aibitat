@@ -849,7 +849,13 @@ ${this.getHistory({to: route.to})
    * You are also required to specify the which node can call the function.
    * @param functionConfig The function configuration.
    */
-  public function(functionConfig: AIbitat.FunctionConfig) {
+  public function(
+    functionConfig: AIbitat.FunctionConfig | AIbitat.FunctionConfig[],
+  ) {
+    if (Array.isArray(functionConfig)) {
+      functionConfig.map(e => this.function(e))
+      return this
+    }
     this.functions.set(functionConfig.name, functionConfig)
     return this
   }
