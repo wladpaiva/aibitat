@@ -56,7 +56,6 @@ const aibitat = new AIbitat({
     'webDeveloper',
     'marketingSpecialist',
     'PM',
-    'client',
   ])
 
 await aibitat.start({
