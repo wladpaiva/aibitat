@@ -59,12 +59,12 @@ const aibitat = new AIbitat()
       }
 
       if (typeof Bun !== 'undefined') {
-        Bun.write(filename, code)
+        await Bun.write(filename, code)
         return `File ${filename} created and can be executed with "bun ${filename}"`
       }
 
       const fs = await import('fs')
-      await fs.writeFile(filename, code, () => {})
+      fs.writeFile(filename, code, () => {})
       return `File ${filename} created and can be executed with "node ${filename}"`
     },
   })

@@ -52,6 +52,7 @@ export class AnthropicProvider extends Provider<Anthropic> {
    * Create a completion based on the received messages.
    *
    * @param messages A list of messages to send to the Anthropic API.
+   * @param functions
    * @returns The completion.
    */
   async complete(

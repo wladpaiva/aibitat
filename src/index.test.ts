@@ -3,7 +3,7 @@ import OpenAI from 'openai'
 
 import {RetryError} from './error.ts'
 import {AIbitat} from './index.ts'
-import type {Provider} from './providers/index.ts'
+import type {Provider} from './providers'
 
 // HACK: Mock the AI provider.
 // This is still needed because Bun doesn't support mocking modules yet.

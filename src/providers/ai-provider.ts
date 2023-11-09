@@ -4,9 +4,9 @@ import type {AIbitat} from '..'
  * A service that provides an AI client to create a completion.
  */
 export abstract class Provider<T> {
-  private _client: T
+  private readonly _client: T
 
-  constructor(client: T) {
+  protected constructor(client: T) {
     this._client = client
   }
 
@@ -23,6 +23,7 @@ export abstract class Provider<T> {
    *
    * @throws known treated errors from `src/error.ts`.
    * @param messages A list of messages to send.
+   * @param functions
    */
   abstract complete(
     messages: Provider.Message[],

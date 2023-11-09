@@ -23,9 +23,8 @@ function cli({
     setup(aibitat) {
       let printing: Promise<void>[] = []
 
-      aibitat.onError(error => {
+      aibitat.onError(async error => {
         console.error(chalk.red(`   error: ${(error as Error).message}`))
-
         if (error instanceof RetryError) {
           console.error(chalk.red(`   retrying in 60 seconds...`))
           setTimeout(() => {
