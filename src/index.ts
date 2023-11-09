@@ -622,8 +622,8 @@ Only return the role.
   /**
    * Ask the for the AI provider to generate a reply to the chat.
    *
-   * @param chat.to The node that sent the chat.
-   * @param chat.from The node that will reply to the chat.
+   * @param route.to The node that sent the chat.
+   * @param route.from The node that will reply to the chat.
    */
   private async reply(route: Route) {
     // get the provider for the node that will reply
