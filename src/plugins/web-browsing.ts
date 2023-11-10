@@ -12,6 +12,7 @@ import type {AIbitat} from '..'
  * **Requires an SERPER_API_KEY environment variable**.
  *
  * @param query
+ * @param options
  * @returns
  */
 async function search(

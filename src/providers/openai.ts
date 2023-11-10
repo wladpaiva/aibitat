@@ -70,6 +70,7 @@ export class OpenAIProvider extends Provider<OpenAI> {
    * Create a completion based on the received messages.
    *
    * @param messages A list of messages to send to the OpenAI API.
+   * @param functions
    * @returns The completion.
    */
   async complete(
@@ -84,7 +85,7 @@ export class OpenAIProvider extends Provider<OpenAI> {
         functions,
       })
 
-      // Right now, we only support one completion
+      // Right now, we only support one completion,
       // so we just take the first one in the list
       const completion = response.choices[0].message
       const cost = this.getCost(response.usage)
@@ -139,7 +140,7 @@ export class OpenAIProvider extends Provider<OpenAI> {
   /**
    * Get the cost of the completion.
    *
-   * @param completion The completion to get the cost for.
+   * @param usage The completion to get the cost for.
    * @returns The cost of the completion.
    */
   getCost(usage: OpenAI.Completions.CompletionUsage | undefined) {

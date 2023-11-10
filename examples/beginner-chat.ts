@@ -25,8 +25,7 @@ export const aibitat = new AIbitat({
         'https://raw.githubusercontent.com/wladiston/aibitat/main/README.md',
       )
       const html = await response.text()
-      const text = cheerio.load(html).text()
-      return text
+      return cheerio.load(html).text()
     },
   })
   .agent(Agent.HUMAN, {

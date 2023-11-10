@@ -64,7 +64,7 @@ export type ChannelConfig<T extends Provider = 'openai'> = ProviderConfig<T> & {
   role?: string
 
   /**
-   * The maximum number of rounds a agent can chat with the channel
+   * The maximum number of rounds an agent can chat with the channel
    * @default 10
    */
   maxRounds?: number
@@ -307,7 +307,7 @@ export class AIbitat<T extends Provider> {
   /**
    * Interruption the chat.
    *
-   * @param chat The nodes that participated in the interruption.
+   * @param route The nodes that participated in the interruption.
    * @returns
    */
   private interrupt(route: Route) {
@@ -379,7 +379,8 @@ export class AIbitat<T extends Provider> {
    * Register an error in the chat history.
    * This will trigger the `onError` event.
    *
-   * @param message
+   * @param route
+   * @param error
    */
   private newError(route: Route, error: unknown) {
     const chat = {
@@ -426,7 +427,7 @@ export class AIbitat<T extends Provider> {
   /**
    * Recursively chat between two nodes.
    *
-   * @param chat The nodes that are going to participate in the chat.
+   * @param route
    * @param keepAlive Whether to keep the chat alive.
    */
   private async chat(route: Route, keepAlive = true) {
@@ -550,7 +551,7 @@ export class AIbitat<T extends Provider> {
       node => !this.hasReachedMaximumRounds(channel, node),
     )
 
-    // remove the last node that chatted with the channel so it doesn't chat again
+    // remove the last node that chatted with the channel, so it doesn't chat again
     const lastChat = this._chats.filter(c => c.to === channel).at(-1)
     if (lastChat) {
       const index = availableNodes.indexOf(lastChat.from)
@@ -621,8 +622,8 @@ Only return the role.
   /**
    * Ask the for the AI provider to generate a reply to the chat.
    *
-   * @param chat.to The node that sent the chat.
-   * @param chat.from The node that will reply to the chat.
+   * @param route.to The node that sent the chat.
+   * @param route.from The node that will reply to the chat.
    */
   private async reply(route: Route) {
     // get the provider for the node that will reply
