@@ -92,13 +92,56 @@ type Prettify<T> = {
   [K in keyof T]: T[K]
 } & {}
 
+type SeedChat = Prettify<
+  Route & {
+    state: 'seed'
+    content: string
+  }
+>
+
+type ReplyChat = Prettify<
+  Route & {
+    state: 'reply'
+    content: string
+    /** Time it took for the LLM to reply */
+    time: number
+  }
+>
+
+type ErrorChat = Prettify<
+  Route & {
+    state: 'error'
+    content: string
+  }
+>
+
+type ThinkingChat = Prettify<
+  Route & {
+    state: 'thinking'
+  }
+>
+
+type InterruptChat = Prettify<
+  Route & {
+    state: 'interrupt'
+  }
+>
+
 /**
- * A chat message that is saved in the history.
+ * A state of a chat message that is saved in the history.
+ *
+ * - `thinking`: waiting for the llm to think of a response
+ * - `interrupt`: interrupted by a node
+ * - `error`: error to think or execute
+ * - `replied`: llm replied with a message
+ * - `seeded`: a response was seeded, meaning that the llm will not think of a response
  */
-type Chat = Omit<Message, 'content'> & {
-  content?: string
-  state: 'success' | 'interrupt' | 'error'
-}
+export type Chat =
+  | SeedChat
+  | ReplyChat
+  | ErrorChat
+  | ThinkingChat
+  | InterruptChat
 
 /**
  * Chat history.
@@ -336,14 +379,9 @@ export class AIbitat<T extends Provider> {
    *
    * @param message
    */
-  private newMessage(message: Message) {
-    const chat = {
-      ...message,
-      state: 'success' as const,
-    }
-
-    this._chats.push(chat)
-    this.emitter.emit('message', chat, this)
+  private newMessage(message: SeedChat | ReplyChat) {
+    this._chats.push(message)
+    this.emitter.emit('message', message, this)
   }
 
   /**
@@ -412,7 +450,7 @@ export class AIbitat<T extends Provider> {
    */
   public async start(message: Message) {
     // register the message in the chat history
-    this.newMessage(message)
+    this.newMessage({...message, state: 'seed'})
     this.emitter.emit('start', message, this)
 
     // ask the node to reply
@@ -674,17 +712,30 @@ ${this.getHistory({to: route.to})
     })
 
     // get the chat completion
-    const content = await this.handleExecution(provider, messages, functions)
-    this.newMessage({...route, content})
+    const start = performance.now()
+    const content = await this.handleExecution(
+      route,
+      provider,
+      messages,
+      functions,
+    )
+    this.newMessage({
+      ...route,
+      content,
+      state: 'reply',
+      time: Math.round(performance.now() - start),
+    })
 
     return content
   }
 
   private async handleExecution(
+    route: Route,
     provider: Providers.Provider<unknown>,
     messages: Providers.Provider.Message[],
     functions?: AIbitat.FunctionDefinition[],
   ): Promise<string> {
+    this.thinking(route)
     // get the chat completion
     const completion = await provider.complete(messages, functions)
 
@@ -696,6 +747,7 @@ ${this.getHistory({to: route.to})
       // ask the provider to complete again
       if (!fn) {
         return await this.handleExecution(
+          route,
           provider,
           [
             ...messages,
@@ -712,6 +764,7 @@ ${this.getHistory({to: route.to})
       // Execute the function and return the result to the provider
       const result = await fn.handler(args)
       return await this.handleExecution(
+        route,
         provider,
         [
           ...messages,
@@ -759,7 +812,7 @@ ${this.getHistory({to: route.to})
       }
 
       // register the message in the chat history
-      this.newMessage(message)
+      this.newMessage({...message, state: 'seed'})
 
       // ask the node to reply
       await this.chat({
@@ -795,7 +848,7 @@ ${this.getHistory({to: route.to})
    */
   private getHistory({from, to}: {from?: string; to?: string}) {
     return this._chats.filter(chat => {
-      const isSuccess = chat.state === 'success'
+      const isSuccess = chat.state === 'reply' || chat.state === 'seed'
 
       // return all chats to the node
       if (!from) {
@@ -817,7 +870,7 @@ ${this.getHistory({to: route.to})
       from: string
       to: string
       content: string
-      state: 'success'
+      state: 'reply' | 'seed'
     }[]
   }
 
