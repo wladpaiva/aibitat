@@ -1,175 +1,65 @@
-import Anthropic, {ClientOptions} from '@anthropic-ai/sdk'
+import Anthropic from "@anthropic-ai/sdk";
+import { AIProvider } from "aibitat";
 
-import type {AIbitat} from '..'
-import {RetryError} from '../error.ts'
-import {Provider} from './ai-provider.ts'
 
 /**
- * The model to use for the Anthropic API.
+ * The model to use for the Anthropic API using the Messages API.
  */
-type AnthropicModel = Anthropic.CompletionCreateParams['model']
+type Message = {
+  role: string;
+  content: string;
+};
 
 /**
- * The configuration for the Anthropic provider.
+ * Updated Anthropic provider that uses the Messages API instead of the Completions API
+ * for compatibility with the newer Claude models like Claude 3.5
  */
-export type AnthropicProviderConfig = {
-  /**
-   * The options for the Anthropic client.
-   * @default {apiKey: process.env.ANTHROPIC_API_KEY}
-   */
-  options?: ClientOptions
-  /**
-   * The model to use for the Anthropic API.
-   * @default 'claude-2'
-   */
-  model?: AnthropicModel
-}
+export class AnthropicMessagesProvider extends AIProvider<Anthropic> {
+  private model: string;
 
-/**
- * The provider for the OpenAI API.
- * By default, the model is set to 'claude-2'.
- */
-export class AnthropicProvider extends Provider<Anthropic> {
-  private model: AnthropicModel
-
-  constructor(config: AnthropicProviderConfig = {}) {
-    const {
-      options = {
-        apiKey: process.env.ANTHROPIC_API_KEY,
-        maxRetries: 3,
-      },
-      model = 'claude-2',
-    } = config
-
-    const client = new Anthropic(options)
-
-    super(client)
-
-    this.model = model
+  constructor(options: { apiKey?: string; model?: string }) {
+    const client = new Anthropic({
+      apiKey: options.apiKey || process.env.ANTHROPIC_API_KEY || "",
+    });
+    super(client);
+    this.model = options.model || "claude-3-5-sonnet-20241022";
   }
 
-  /**
-   * Create a completion based on the received messages.
-   *
-   * @param messages A list of messages to send to the Anthropic API.
-   * @param functions
-   * @returns The completion.
-   */
-  async complete(
-    messages: Provider.Message[],
-    functions?: AIbitat.FunctionDefinition[],
-  ): Promise<Provider.Completion> {
-    // clone messages to avoid mutating the original array
-    const promptMessages = [...messages]
+  async create(messages: Message[]): Promise<string> {
+    // Convert messages to the format expected by Anthropic's Messages API
+    const formattedMessages = messages
+      .filter((message) => message.role !== "system")
+      .map((message) => {
+        return {
+          role:
+            message.role === "user"
+              ? ("user" as const)
+              : ("assistant" as const),
+          content: message.content,
+        };
+      });
 
-    if (functions) {
-      const functionPrompt = this.getFunctionPrompt(functions)
-
-      // add function prompt after the first message
-      promptMessages.splice(1, 0, {
-        content: functionPrompt,
-        role: 'system',
-      })
-    }
-
-    const prompt = promptMessages
-      .map(message => {
-        const {content, role} = message
-
-        switch (role) {
-          case 'system':
-            return content
-              ? `${Anthropic.HUMAN_PROMPT} <admin>${content}</admin>`
-              : ''
-
-          case 'function':
-          case 'user':
-            return `${Anthropic.HUMAN_PROMPT} ${content}`
-
-          case 'assistant':
-            return `${Anthropic.AI_PROMPT} ${content}`
-
-          default:
-            return content
-        }
-      })
-      .filter(Boolean)
-      .join('\n')
-      .concat(` ${Anthropic.AI_PROMPT}`)
+    // Handle system message - extract it from messages array
+    const systemMessage = messages.find((message) => message.role === "system");
+    const systemPrompt = systemMessage ? systemMessage.content : undefined;
 
     try {
-      const response = await this.client.completions.create({
+      const response = await this.client.messages.create({
         model: this.model,
-        max_tokens_to_sample: 3000,
-        stream: false,
-        prompt,
-      })
+        system: systemPrompt,
+        messages: formattedMessages,
+        max_tokens: 4096,
+      });
 
-      const result = response.completion.trim()
-      // TODO: get cost from response
-      const cost = 0
-
-      // Handle function calls if the model returns a function call
-      if (result.includes('function_name') && functions) {
-        let functionCall: AIbitat.FunctionCall
-        try {
-          functionCall = JSON.parse(result)
-        } catch (error) {
-          // call the complete function again in case it gets a json error
-          return await this.complete(
-            [
-              ...messages,
-              {
-                role: 'function',
-                content: `You gave me this function call: ${result} but I couldn't parse it.
-                ${(error as Error).message}
-                
-                Please try again.`,
-              },
-            ],
-            functions,
-          )
-        }
-
-        return {
-          result: null,
-          functionCall,
-          cost,
-        }
+      // Extract text content from the response
+      if (response.content[0] && "text" in response.content[0]) {
+        return response.content[0].text;
       }
 
-      return {
-        result,
-        cost,
-      }
+      return "No text response received from the API";
     } catch (error) {
-      if (
-        error instanceof Anthropic.RateLimitError ||
-        error instanceof Anthropic.InternalServerError ||
-        error instanceof Anthropic.APIError
-      ) {
-        throw new RetryError(error.message)
-      }
-
-      throw error
+      console.error("Error calling Anthropic API:", error);
+      throw error;
     }
-  }
-
-  private getFunctionPrompt(functions: AIbitat.FunctionDefinition[]) {
-    const functionPrompt = `<functions>You have been trained to directly call a Javascript function passing a JSON Schema parameter as a response to this chat. This function will return a string that you can use to keep chatting.
-  
-  Here is a list of functions available to you:
-  ${JSON.stringify(functions, null, 2)}
-  
-  When calling any of those function in order to complete your task, respond only this JSON format. Do not include any other information or any other stuff.
-  
-  Function call format:
-  {
-     function_name: "givenfunctionname",
-     parameters: {}
-  }
-  </functions>`
-
-    return functionPrompt
   }
 }
