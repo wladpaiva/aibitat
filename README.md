@@ -81,21 +81,25 @@ bun run index.ts
 | Error handling     | Manage rate limits smoothly without crashing.          | ✅     |
 | Function execution | Agents can execute tasks and understand the results.   | ✅     |
 | Web browsing       | Navigate on the internet.                              | 🚧     |
-| Cache              | Save chat history for faster and fewer API calls.      | 🕝     |
+| Cache              | Save chat history for faster and fewer API calls.      | ✅     |
 | File interaction   | Interact with local files by read/write/execute        | 🕝     |
 | Code execution     | Agents can run code and share the results.             | 🕝     |
 | Cost limit         | Limit the number of interactions by cost.              | 🕝     |
 
 ### Providers
 
-| Provider     | Status |
-| ------------ | ------ |
-| OpenAI       | ✅     |
-| Anthropic    | ✅     |
-| Cohere       | 🕝     |
-| Fireworks.ai | 🕝     |
-| Hugging Face | 🕝     |
-| Replicate    | 🕝     |
+| Provider        | Status |
+| --------------- | ------ |
+| OpenAI          | ✅     |
+| Anthropic       | ✅     |
+| Zhipu AI        | ✅     |
+| Cohere          | ✅     |
+| Fireworks.ai    | ✅     |
+| Hugging Face    | ✅     |
+| Replicate       | ✅     |
+| Moonshot (Kimi) | ✅     |
+| Qianwen         | ✅     |
+| MinMax          | ✅     |
 
 ## Documentation
 

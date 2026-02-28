@@ -5,7 +5,7 @@ import {cli} from '../src/plugins'
 
 export const aibitat = new AIbitat({
   provider: 'anthropic',
-  model: 'claude-2',
+  model: 'claude-3-5-sonnet-20240620',
 })
   .use(cli())
   .function({
