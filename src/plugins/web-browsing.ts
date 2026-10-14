@@ -1,6 +1,6 @@
+import {PromptTemplate} from '@langchain/core/prompts'
+import {ChatOpenAI} from '@langchain/openai'
 import {loadSummarizationChain} from 'langchain/chains'
-import {ChatOpenAI} from 'langchain/chat_models/openai'
-import {PromptTemplate} from 'langchain/prompts'
 import {RecursiveCharacterTextSplitter} from 'langchain/text_splitter'
 import {NodeHtmlMarkdown} from 'node-html-markdown'
 
