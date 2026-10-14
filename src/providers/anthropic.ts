@@ -1,65 +1,96 @@
-import Anthropic from "@anthropic-ai/sdk";
-import { AIProvider } from "aibitat";
+import Anthropic, {ClientOptions} from '@anthropic-ai/sdk'
 
-
-/**
- * The model to use for the Anthropic API using the Messages API.
- */
-type Message = {
-  role: string;
-  content: string;
-};
+import type {AIbitat} from '..'
+import {RetryError} from '../error.ts'
+import {Provider} from './ai-provider.ts'
 
 /**
- * Updated Anthropic provider that uses the Messages API instead of the Completions API
- * for compatibility with the newer Claude models like Claude 3.5
+ * The model to use for the Anthropic Messages API.
  */
-export class AnthropicMessagesProvider extends AIProvider<Anthropic> {
-  private model: string;
+type AnthropicModel = Anthropic.MessageCreateParams['model']
 
-  constructor(options: { apiKey?: string; model?: string }) {
-    const client = new Anthropic({
-      apiKey: options.apiKey || process.env.ANTHROPIC_API_KEY || "",
-    });
-    super(client);
-    this.model = options.model || "claude-3-5-sonnet-20241022";
+/**
+ * The configuration for the Anthropic provider.
+ */
+export type AnthropicProviderConfig = {
+  /**
+   * The options for the Anthropic client.
+   * @default {apiKey: process.env.ANTHROPIC_API_KEY}
+   */
+  options?: ClientOptions
+  /**
+   * The model to use for the Anthropic API.
+   * @default 'claude-3-5-sonnet-20241022'
+   */
+  model?: AnthropicModel
+}
+
+/**
+ * Provider for Anthropic's Messages API.
+ * By default, the model is set to 'claude-3-5-sonnet-20241022'.
+ */
+export class AnthropicProvider extends Provider<Anthropic> {
+  private model: AnthropicModel
+
+  constructor(config: AnthropicProviderConfig = {}) {
+    const {
+      options = {
+        apiKey: process.env.ANTHROPIC_API_KEY,
+      },
+      model = 'claude-3-5-sonnet-20241022',
+    } = config
+
+    super(new Anthropic(options))
+    this.model = model
   }
 
-  async create(messages: Message[]): Promise<string> {
-    // Convert messages to the format expected by Anthropic's Messages API
-    const formattedMessages = messages
-      .filter((message) => message.role !== "system")
-      .map((message) => {
-        return {
-          role:
-            message.role === "user"
-              ? ("user" as const)
-              : ("assistant" as const),
-          content: message.content,
-        };
-      });
-
-    // Handle system message - extract it from messages array
-    const systemMessage = messages.find((message) => message.role === "system");
-    const systemPrompt = systemMessage ? systemMessage.content : undefined;
+  /**
+   * Create a completion based on the received messages.
+   *
+   * @param messages A list of messages to send to the Anthropic API.
+   * @returns The completion.
+   */
+  async complete(messages: Provider.Message[]): Promise<Provider.Completion> {
+    const system = messages.find(message => message.role === 'system')?.content
+    const conversational = messages.filter(message => message.role !== 'system')
+    const formattedMessages = (
+      conversational.length > 0
+        ? conversational
+        : [{role: 'user' as const, content: system ?? ''}]
+    ).map(message => ({
+      role:
+        message.role === 'assistant'
+          ? ('assistant' as const)
+          : ('user' as const),
+      content: message.content ?? '',
+    }))
 
     try {
       const response = await this.client.messages.create({
         model: this.model,
-        system: systemPrompt,
-        messages: formattedMessages,
         max_tokens: 4096,
-      });
+        messages: formattedMessages,
+        ...(conversational.length > 0 && system ? {system} : {}),
+      })
 
-      // Extract text content from the response
-      if (response.content[0] && "text" in response.content[0]) {
-        return response.content[0].text;
+      const result = response.content
+        .flatMap(block => (block.type === 'text' ? [block.text] : []))
+        .join('')
+
+      return {
+        result,
+        cost: Number.NaN,
+      }
+    } catch (error) {
+      if (
+        error instanceof Anthropic.RateLimitError ||
+        error instanceof Anthropic.InternalServerError ||
+        error instanceof Anthropic.APIError
+      ) {
+        throw new RetryError(error.message)
       }
 
-      return "No text response received from the API";
-    } catch (error) {
-      console.error("Error calling Anthropic API:", error);
-      throw error;
+      throw error
     }
   }
 }
